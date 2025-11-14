@@ -6,10 +6,24 @@
 
 #include "Configuration.hpp"
 
+enum Precision {
+  FP16 = sizeof(sycl::half),
+  FP32 = sizeof(float),
+  FP64 = sizeof(double)
+};
+
+template <Precision P> struct PrecisionType {
+  using type = std::conditional_t<
+      P == Precision::FP16, sycl::half,
+      std::conditional_t<
+          P == Precision::FP32, float,
+          std::conditional_t<P == Precision::FP64, double, void>>>;
+};
+
 /**
- * Class that represents a symmetric matrix that is stored in a blocked manner.
- * Symmetric values in diagonal blocks are stored redundantly. Otherwise, only
- * the lower triangle of the matrix is stored.
+ * Class that represents a mixed precision symmetric matrix that is stored in a
+ * blocked manner. Symmetric values in diagonal blocks are stored redundantly.
+ * Otherwise, only the lower triangle of the matrix is stored.
  *
  * The block size can be set via the constructor.
  *
@@ -46,13 +60,17 @@ public:
    * storage
    * @param queue SYCL queue for allocating memory
    */
-  SymmetricMatrixMixed(std::size_t N, int blockSize, sycl::queue &queue);
+  SymmetricMatrixMixed(std::size_t N, std::vector<Precision> precisionVector,
+                       int blockSize, sycl::queue &queue);
 
-  const std::size_t N;    /// Size N of the NxN symmetric matrix
-  const int blockSize;    /// The matrix will be partitioned in blockSize x
-                          /// blockSize blocks
-  const int blockCountXY; /// block Count in X/Y direction (if the matrix would
-                          /// be stored completely)
+  // Size N of the NxN symmetric matrix
+  const std::size_t N;
+  // The matrix will be partitioned in blockSize x blockSize blocks
+  const int blockSize;
+  // block Count in X/Y direction (if the matrix would be stored completely)
+  const int blockCountXY;
+  // Vector containing array of precision per block in block order
+  const std::vector<Precision> precisionVector;
 
   /// internal matrix data structure allocated as SYCL host memory
   std::vector<conf::fp_type,
