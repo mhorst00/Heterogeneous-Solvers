@@ -59,6 +59,8 @@ set(LIBRARY_FILES
         src/gaussianProcess/GaussianProcess.hpp
         src/dataStructures/SymmetricMatrix.cpp
         src/dataStructures/SymmetricMatrix.hpp
+        src/dataStructures/SymmetricMatrixMixed.cpp
+        src/dataStructures/SymmetricMatrixMixed.hpp
         src/dataStructures/RightHandSide.cpp
         src/dataStructures/RightHandSide.hpp
         src/kernel/VectorOperations.cpp

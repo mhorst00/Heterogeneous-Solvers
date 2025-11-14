@@ -1,6 +1,46 @@
 #include "MatrixGenerator.hpp"
 #include "Configuration.hpp"
+#include <cstddef>
+#include <vector>
 using namespace sycl;
+
+template <Precision P>
+void precisionWrapper(sycl::queue &queue, const int matrixBlockSize,
+                      const std::size_t nRegressors, void *trainingInputData,
+                      void *matrixData, const unsigned int i_block,
+                      const unsigned int j_block,
+                      const std::size_t blockStartIndex,
+                      const double verticalLengthscale = 1.0,
+                      const double lengthscale = 1.0,
+                      const double noiseVariance = 0.01) {
+  using CurrentType = typename PrecisionType<P>::type;
+  queue.submit([&](handler &h) {
+    h.parallel_for(range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
+      const unsigned int i_local = idx[0];
+      const unsigned int j_local = idx[1];
+      const unsigned long i_global = matrixBlockSize * i_block + i_local;
+      const unsigned long j_global = matrixBlockSize * j_block + j_local;
+      if (i_global >= conf::N || j_global >= conf::N) {
+        return;
+      }
+      double distance = 0.0;
+      for (unsigned int k = 0; k < nRegressors; k++) {
+        const double tmp =
+            trainingInputData[i_global + k] - trainingInputData[j_global + k];
+        distance += tmp * tmp;
+      }
+      double covarianceFunction =
+          verticalLengthscale *
+          sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
+
+      if (i_global == j_global) {
+        covarianceFunction += noiseVariance;
+      }
+      matrixData[blockStartIndex + i_local * matrixBlockSize + j_local] =
+          covarianceFunction;
+    });
+  });
+}
 
 SymmetricMatrix
 MatrixGenerator::generateSPDMatrixStrictDiagonalDominant(sycl::queue &queue) {
@@ -172,6 +212,97 @@ SymmetricMatrix MatrixGenerator::generateSPDMatrix(std::string &path,
                          j_local] = covarianceFunction;
             });
       });
+    }
+    queue.wait();
+  }
+  queue.wait();
+
+  return matrix;
+}
+
+SymmetricMatrixMixed
+MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
+                                        sycl::queue &queueGPU) {
+  std::cout << "-- generating SPD matrix of size " << conf::N << "x" << conf::N
+            << std::endl;
+  // Build testing mixed precision vector
+  std::vector<Precision> testPrecision{};
+  testPrecision.resize(conf::matrixBlockSize * (conf::matrixBlockSize + 1) / 2);
+  for (size_t index = 0; index < testPrecision.size(); index++) {
+    Precision blockPrec = (index % 2 == 0) ? Precision::FP16 : Precision::FP32;
+    testPrecision.push_back(blockPrec);
+  }
+
+  SymmetricMatrixMixed matrix(conf::N, testPrecision, conf::matrixBlockSize,
+                              queueGPU);
+
+  std::size_t nRegressors = 8;
+  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
+      trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
+  std::size_t offset = nRegressors - 1;
+  trainingInput.resize(conf::N + offset);
+
+  // Void?
+  void *matrixData = matrix.matrixData.data();
+  void *trainingInputData = trainingInput.data();
+
+  std::ifstream dataInputStream(path);
+  std::string valueString;
+
+  // parse input data
+  std::size_t rowIndex = 0;
+  while (std::getline(dataInputStream, valueString)) {
+    conf::fp_type value = static_cast<conf::fp_type>(std::stod(valueString));
+    trainingInput[rowIndex + offset] = value;
+    rowIndex++;
+    if (rowIndex == conf::N) {
+      break;
+    }
+  }
+  dataInputStream.close();
+
+  if (rowIndex != conf::N) {
+    throw std::runtime_error("Not enough data available!");
+  }
+
+  // block count of all columns except the first one
+  const int referenceBlockCount =
+      (matrix.blockCountXY * (matrix.blockCountXY - 1)) / 2;
+
+  std::size_t N = conf::N;
+  for (std::size_t i_block = 0;
+       i_block < static_cast<std::size_t>(matrix.blockCountXY); ++i_block) {
+    for (std::size_t j_block = 0; j_block <= i_block; j_block++) {
+      // number of blocks in row to the right (if matrix would be full)
+      const int block_j_inv = matrix.blockCountXY - (j_block + 1);
+
+      // total number of blocks to the right that are stored
+      const int columnBlocksToRight = (block_j_inv * (block_j_inv + 1)) / 2;
+
+      // id of block in the matrix data structure for symmetric matrices
+      const int blockID = i_block + referenceBlockCount - columnBlocksToRight;
+
+      // Precision of current block
+      Precision blockPrec = matrix.precisionVector[blockID];
+
+      // start index of block in matrix data structure
+      const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) *
+                                          conf::matrixBlockSize *
+                                          conf::matrixBlockSize;
+
+      // Diagonal noise for stability
+      const double noiseVariance = 0.01;
+
+      // Default values for hyperparameters
+      const double verticalLengthscale = 1.0;
+      const double lengthscale = 1.0;
+
+      std::size_t matrixBlockSize = conf::matrixBlockSize;
+
+      // Move out of for loop and add parameters
+      precisionWrapper<blockPrec>(queue, matrixBlockSize, nRegressors,
+                                  trainingInputData, matrixData, i_block,
+                                  j_block, blockStartIndex);
     }
     queue.wait();
   }

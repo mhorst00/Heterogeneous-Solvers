@@ -1,7 +1,10 @@
 ACPP_PREFIX := "/opt/acpp"
-ACPP_VERSION := "develop"
+ACPP_VERSION := "v25.10.0"
 GPU_VENDOR := "AMD"
 FP64 := "false"
+
+default:
+  @just --list
 
 build: _acpp_setup
   #! /usr/bin/env bash
