@@ -113,4 +113,5 @@ output/
 env.sh
 env_dpcpp.sh
 env_icpx.sh
+test_*.txt
 

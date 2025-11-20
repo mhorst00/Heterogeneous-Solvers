@@ -1,46 +1,10 @@
 #include "MatrixGenerator.hpp"
 #include "Configuration.hpp"
+#include "SymmetricMatrixMixed.hpp"
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 using namespace sycl;
-
-template <Precision P>
-void precisionWrapper(sycl::queue &queue, const int matrixBlockSize,
-                      const std::size_t nRegressors, void *trainingInputData,
-                      void *matrixData, const unsigned int i_block,
-                      const unsigned int j_block,
-                      const std::size_t blockStartIndex,
-                      const double verticalLengthscale = 1.0,
-                      const double lengthscale = 1.0,
-                      const double noiseVariance = 0.01) {
-  using CurrentType = typename PrecisionType<P>::type;
-  queue.submit([&](handler &h) {
-    h.parallel_for(range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
-      const unsigned int i_local = idx[0];
-      const unsigned int j_local = idx[1];
-      const unsigned long i_global = matrixBlockSize * i_block + i_local;
-      const unsigned long j_global = matrixBlockSize * j_block + j_local;
-      if (i_global >= conf::N || j_global >= conf::N) {
-        return;
-      }
-      double distance = 0.0;
-      for (unsigned int k = 0; k < nRegressors; k++) {
-        const double tmp =
-            trainingInputData[i_global + k] - trainingInputData[j_global + k];
-        distance += tmp * tmp;
-      }
-      double covarianceFunction =
-          verticalLengthscale *
-          sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
-
-      if (i_global == j_global) {
-        covarianceFunction += noiseVariance;
-      }
-      matrixData[blockStartIndex + i_local * matrixBlockSize + j_local] =
-          covarianceFunction;
-    });
-  });
-}
 
 SymmetricMatrix
 MatrixGenerator::generateSPDMatrixStrictDiagonalDominant(sycl::queue &queue) {
@@ -223,28 +187,35 @@ SymmetricMatrix MatrixGenerator::generateSPDMatrix(std::string &path,
 SymmetricMatrixMixed
 MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                                         sycl::queue &queueGPU) {
-  std::cout << "-- generating SPD matrix of size " << conf::N << "x" << conf::N
-            << std::endl;
+  std::cout << "-- generating mixed precision SPD matrix of size " << conf::N
+            << "x" << conf::N << std::endl;
+
+  // Computing matrix block count to build vector of block precisions
+  std::size_t matrixBlockCount =
+      std::ceil(static_cast<double>(conf::N) /
+                static_cast<double>(conf::matrixBlockSize));
+
   // Build testing mixed precision vector
   std::vector<Precision> testPrecision{};
-  testPrecision.resize(conf::matrixBlockSize * (conf::matrixBlockSize + 1) / 2);
+  testPrecision.resize(matrixBlockCount * (matrixBlockCount + 1) / 2);
   for (size_t index = 0; index < testPrecision.size(); index++) {
-    Precision blockPrec = (index % 2 == 0) ? Precision::FP16 : Precision::FP32;
-    testPrecision.push_back(blockPrec);
+    testPrecision[index] = (index % 2 == 0) ? Precision::FP16 : Precision::FP32;
   }
 
   SymmetricMatrixMixed matrix(conf::N, testPrecision, conf::matrixBlockSize,
                               queueGPU);
 
+  std::cout << "Allocated mixed precision matrix" << std::endl;
   std::size_t nRegressors = 8;
   std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
       trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
   std::size_t offset = nRegressors - 1;
   trainingInput.resize(conf::N + offset);
+  std::cout << "Allocated training data vector" << std::endl;
 
   // Void?
   void *matrixData = matrix.matrixData.data();
-  void *trainingInputData = trainingInput.data();
+  conf::fp_type *trainingInputData = trainingInput.data();
 
   std::ifstream dataInputStream(path);
   std::string valueString;
@@ -284,6 +255,13 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
 
       // Precision of current block
       Precision blockPrec = matrix.precisionVector[blockID];
+      if (blockPrec == Precision::FP16) {
+        std::cout << "Current block precision is FP16" << std::endl;
+      } else if (blockPrec == Precision::FP32) {
+        std::cout << "Current block precision is FP32" << std::endl;
+      } else if (blockPrec == Precision::FP64) {
+        std::cout << "Current block precision is FP64" << std::endl;
+      }
 
       // start index of block in matrix data structure
       const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) *
@@ -299,10 +277,115 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
 
       std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-      // Move out of for loop and add parameters
-      precisionWrapper<blockPrec>(queue, matrixBlockSize, nRegressors,
-                                  trainingInputData, matrixData, i_block,
-                                  j_block, blockStartIndex);
+      if (blockPrec == Precision::FP16) {
+        queue.submit([&](handler &h) {
+          h.parallel_for(
+              range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
+                // Add correct typing to both arrays according to block index
+                sycl::half *matrixDataTyped =
+                    static_cast<sycl::half *>(matrixData);
+                conf::fp_type *trainingInputDataTyped =
+                    static_cast<conf::fp_type *>(trainingInputData);
+                const unsigned int i_local = idx[0];
+                const unsigned int j_local = idx[1];
+                const unsigned long i_global =
+                    matrixBlockSize * i_block + i_local;
+                const unsigned long j_global =
+                    matrixBlockSize * j_block + j_local;
+                if (i_global >= N || j_global >= N) {
+                  return;
+                }
+                sycl::half distance = 0.0;
+                for (unsigned int k = 0; k < nRegressors; k++) {
+                  const sycl::half tmp = trainingInputDataTyped[i_global + k] -
+                                         trainingInputDataTyped[j_global + k];
+                  distance += tmp * tmp;
+                }
+                sycl::half covarianceFunction =
+                    verticalLengthscale *
+                    sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
+
+                if (i_global == j_global) {
+                  covarianceFunction += noiseVariance;
+                }
+                matrixDataTyped[blockStartIndex + i_local * matrixBlockSize +
+                                j_local] = covarianceFunction;
+              });
+        });
+
+      } else if (blockPrec == Precision::FP32) {
+        queue.submit([&](handler &h) {
+          h.parallel_for(
+              range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
+                // Add correct typing to both arrays according to block index
+                float *matrixDataTyped = static_cast<float *>(matrixData);
+                conf::fp_type *trainingInputDataTyped =
+                    static_cast<conf::fp_type *>(trainingInputData);
+                const unsigned int i_local = idx[0];
+                const unsigned int j_local = idx[1];
+                const unsigned long i_global =
+                    matrixBlockSize * i_block + i_local;
+                const unsigned long j_global =
+                    matrixBlockSize * j_block + j_local;
+                if (i_global >= N || j_global >= N) {
+                  return;
+                }
+                float distance = 0.0;
+                for (unsigned int k = 0; k < nRegressors; k++) {
+                  const float tmp = trainingInputDataTyped[i_global + k] -
+                                    trainingInputDataTyped[j_global + k];
+                  distance += tmp * tmp;
+                }
+                float covarianceFunction =
+                    verticalLengthscale *
+                    sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
+
+                if (i_global == j_global) {
+                  covarianceFunction += noiseVariance;
+                }
+                matrixDataTyped[blockStartIndex + i_local * matrixBlockSize +
+                                j_local] = covarianceFunction;
+              });
+        });
+
+      } else if (blockPrec == Precision::FP64) {
+        queue.submit([&](handler &h) {
+          h.parallel_for(
+              range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
+                // Add correct typing to both arrays according to block index
+                double *matrixDataTyped = static_cast<double *>(matrixData);
+                conf::fp_type *trainingInputDataTyped =
+                    static_cast<conf::fp_type *>(trainingInputData);
+                const unsigned int i_local = idx[0];
+                const unsigned int j_local = idx[1];
+                const unsigned long i_global =
+                    matrixBlockSize * i_block + i_local;
+                const unsigned long j_global =
+                    matrixBlockSize * j_block + j_local;
+                if (i_global >= N || j_global >= N) {
+                  return;
+                }
+                double distance = 0.0;
+                for (unsigned int k = 0; k < nRegressors; k++) {
+                  const double tmp = trainingInputDataTyped[i_global + k] -
+                                     trainingInputDataTyped[j_global + k];
+                  distance += tmp * tmp;
+                }
+                double covarianceFunction =
+                    verticalLengthscale *
+                    sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
+
+                if (i_global == j_global) {
+                  covarianceFunction += noiseVariance;
+                }
+                matrixDataTyped[blockStartIndex + i_local * matrixBlockSize +
+                                j_local] = covarianceFunction;
+              });
+        });
+
+      } else {
+        throw std::runtime_error("Block precision not supported!");
+      }
     }
     queue.wait();
   }
