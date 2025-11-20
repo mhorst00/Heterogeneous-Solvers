@@ -110,4 +110,5 @@ build/heterogeneous_solvers
 # Custom data
 matrixGenerator/datasets/
 output/
+test_*.txt
 

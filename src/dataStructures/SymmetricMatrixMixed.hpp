@@ -12,14 +12,6 @@ enum Precision {
   FP64 = sizeof(double)
 };
 
-template <Precision P> struct PrecisionType {
-  using type = std::conditional_t<
-      P == Precision::FP16, sycl::half,
-      std::conditional_t<
-          P == Precision::FP32, float,
-          std::conditional_t<P == Precision::FP64, double, void>>>;
-};
-
 /**
  * Class that represents a mixed precision symmetric matrix that is stored in a
  * blocked manner. Symmetric values in diagonal blocks are stored redundantly.
