@@ -205,15 +205,12 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
   SymmetricMatrixMixed matrix(conf::N, testPrecision, conf::matrixBlockSize,
                               queueGPU);
 
-  std::cout << "Allocated mixed precision matrix" << std::endl;
   std::size_t nRegressors = 8;
   std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
       trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
   std::size_t offset = nRegressors - 1;
   trainingInput.resize(conf::N + offset);
-  std::cout << "Allocated training data vector" << std::endl;
 
-  // Void?
   void *matrixData = matrix.matrixData.data();
   conf::fp_type *trainingInputData = trainingInput.data();
 
@@ -278,6 +275,9 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
       std::size_t matrixBlockSize = conf::matrixBlockSize;
 
       if (blockPrec == Precision::FP16) {
+        matrix.byteSize +=
+            matrixBlockSize * matrixBlockSize * sizeof(sycl::half);
+
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
@@ -314,6 +314,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
         });
 
       } else if (blockPrec == Precision::FP32) {
+        matrix.byteSize += matrixBlockSize * matrixBlockSize * sizeof(float);
+
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
@@ -349,6 +351,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
         });
 
       } else if (blockPrec == Precision::FP64) {
+        matrix.byteSize += matrixBlockSize * matrixBlockSize * sizeof(double);
+
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {

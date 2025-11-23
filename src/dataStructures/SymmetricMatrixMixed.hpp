@@ -63,6 +63,8 @@ public:
   const int blockCountXY;
   // Vector containing array of precision per block in block order
   const std::vector<Precision> precisionVector;
+  // Size of allocated matrix in bytes
+  std::size_t byteSize;
 
   /// internal matrix data structure allocated as SYCL host memory
   std::vector<conf::fp_type,

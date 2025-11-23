@@ -12,7 +12,7 @@ SymmetricMatrixMixed::SymmetricMatrixMixed(
     : N(N), blockSize(blockSize),
       blockCountXY(
           std::ceil(static_cast<double>(N) / static_cast<double>(blockSize))),
-      precisionVector(precisionVector),
+      precisionVector(precisionVector), byteSize(0),
       matrixData(
           sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>(queue)) {
   // allocate memory for matrix storage
