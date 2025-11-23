@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sycl/sycl.hpp>
 
+#include "Configuration.hpp"
 #include "MatrixParser.hpp"
 #include "MatrixVectorOperations.hpp"
 #include "SymmetricMatrixMixed.hpp"
@@ -951,7 +952,7 @@ void CGMixed::initGPUdataStructures() {
   const std::size_t totalBlockCountA =
       (A.blockCountXY * (A.blockCountXY + 1) / 2);
 
-  std::size_t valuesGPU;
+  std::size_t bytesGPU = 0;
   if (maxBlocksGPUMemory < totalBlockCountA) {
     // GPU memory is not sufficient to store the whole matrix --> calculate
     // maximum number of rows that can be stored
@@ -968,8 +969,10 @@ void CGMixed::initGPUdataStructures() {
       const std::size_t blocksGPUMemory =
           totalBlockCountA - (rowsLowerPart * (rowsLowerPart + 1) / 2);
 
-      valuesGPU =
-          blocksGPUMemory * conf::matrixBlockSize * conf::matrixBlockSize;
+      for (std::size_t block = 0; block < blocksGPUMemory; block++) {
+        bytesGPU += A.precisionVector[block] * conf::matrixBlockSize *
+                    conf::matrixBlockSize;
+      }
 
       maxBlockCountGPU = maxRowsGPUMemory;
 
@@ -984,15 +987,14 @@ void CGMixed::initGPUdataStructures() {
   } else {
     maxBlockCountGPU = A.blockCountXY;
     // Whole matrix A fits into GPU memory
-    valuesGPU = A.matrixData.size();
+    bytesGPU = A.matrixData.size();
   }
 
   // Matrix A GPU
-  A_gpu = malloc_device<conf::fp_type>(valuesGPU, gpuQueue);
+  A_gpu = malloc_device(bytesGPU, gpuQueue);
   gpuQueue
-      .submit([&](handler &h) {
-        h.memcpy(A_gpu, A.matrixData.data(), valuesGPU * sizeof(conf::fp_type));
-      })
+      .submit(
+          [&](handler &h) { h.memcpy(A_gpu, A.matrixData.data(), bytesGPU); })
       .wait();
 
   // Right-hand side b GPU
