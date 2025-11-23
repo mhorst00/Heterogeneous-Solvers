@@ -177,7 +177,7 @@ public:
 
 private:
   // gpu data structures
-  conf::fp_type *A_gpu;
+  void *A_gpu;
   conf::fp_type *b_gpu;
   conf::fp_type *x_gpu;
   conf::fp_type *r_gpu;
