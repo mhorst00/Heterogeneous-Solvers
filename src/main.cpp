@@ -1,5 +1,6 @@
 // clang-format off
 #include <iostream>
+#include <ostream>
 #include <sycl/sycl.hpp>
 #include <hws/system_hardware_sampler.hpp>
 #include <hws/cpu/hardware_sampler.hpp>
