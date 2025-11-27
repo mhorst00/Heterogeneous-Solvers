@@ -5,8 +5,8 @@
 #include <sycl/sycl.hpp>
 
 #include "Configuration.hpp"
-#include "MatrixParser.hpp"
 #include "MatrixVectorOperations.hpp"
+#include "MatrixVectorOperationsMixed.hpp"
 #include "SymmetricMatrixMixed.hpp"
 #include "UtilityFunctions.hpp"
 #include "VectorOperations.hpp"
@@ -791,6 +791,8 @@ void CGMixed::solveHeterogeneous() {
       std::chrono::duration<double, std::milli>(endMemInit - startMemInit)
           .count();
 
+  std::cout << "Built mixed CG data structures" << std::endl;
+
   // variables for cg algorithm
   conf::fp_type delta_new = 0;
   conf::fp_type delta_old = 0;
@@ -808,6 +810,7 @@ void CGMixed::solveHeterogeneous() {
    *     δ_0 = δ_new
    */
   initCG(delta_zero, delta_new);
+  std::cout << "initCG" << std::endl;
 
   std::size_t iteration = 0;
 
@@ -818,25 +821,31 @@ void CGMixed::solveHeterogeneous() {
 
     if (iteration % loadBalancer->updateInterval == 0 && !firstIteration) {
       rebalanceProportions(gpuProportion);
+      std::cout << "rebalance" << std::endl;
     }
 
     auto timePoint1 = std::chrono::steady_clock::now();
     compute_q(); // q = Ad
+    std::cout << "compute_q" << std::endl;
 
     auto timePoint2 = std::chrono::steady_clock::now();
     compute_alpha(alpha, delta_new); // 𝛼 = δ_new / d^T * q
+    std::cout << "compute_alpha" << std::endl;
 
     auto timePoint3 = std::chrono::steady_clock::now();
     update_x(alpha); // x = x + 𝛼d
+    std::cout << "update_x" << std::endl;
 
     auto timePoint4 = std::chrono::steady_clock::now();
     if (iteration % 50 == 0) {
       // compute real residual every 50 iterations --> requires additional
       // matrix vector product
       computeRealResidual(); // r = b - Ax
+      std::cout << "computeRealResidual" << std::endl;
     } else {
       // compute residual without an additional matrix vector product
       update_r(alpha); // r = r - 𝛼q
+      std::cout << "update_r" << std::endl;
     }
 
     auto timePoint5 = std::chrono::steady_clock::now();
@@ -845,6 +854,7 @@ void CGMixed::solveHeterogeneous() {
     auto timePoint6 = std::chrono::steady_clock::now();
     beta = delta_new / delta_old; // β = δ_new / δ_old
     compute_d(beta);              // d = r + βd
+    std::cout << "Computed deltas" << std::endl;
 
     auto endIteration = std::chrono::steady_clock::now();
     auto iterationTime =
@@ -987,7 +997,7 @@ void CGMixed::initGPUdataStructures() {
   } else {
     maxBlockCountGPU = A.blockCountXY;
     // Whole matrix A fits into GPU memory
-    bytesGPU = A.matrixData.size();
+    bytesGPU = A.byteSize;
   }
 
   // Matrix A GPU
@@ -1073,16 +1083,17 @@ void CGMixed::freeDataStructures() {
 void CGMixed::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
   // r = b - Ax
   if (blockCountGPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock(gpuQueue, A_gpu, x_gpu, r_gpu, 0,
-                                              0, blockCountGPU, A.blockCountXY,
-                                              A.blockCountXY);
+    MatrixVectorOperationsMixed::matrixVectorBlock(
+        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionVector, 0, 0, blockCountGPU,
+        A.blockCountXY, A.blockCountXY);
   }
   if (blockCountCPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock(
-        cpuQueue, A.matrixData.data(), x.data(), r_cpu, blockStartCPU, 0,
-        blockCountCPU, A.blockCountXY, A.blockCountXY);
+    MatrixVectorOperationsMixed::matrixVectorBlock(
+        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionVector,
+        blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
   }
   waitAllQueues();
+  std::cout << "Completed r = b - Ax" << std::endl;
 
   if (blockCountGPU != 0) {
     VectorOperations::subVectorBlock(gpuQueue, b_gpu, r_gpu, r_gpu, 0,
@@ -1179,24 +1190,24 @@ void CGMixed::compute_q() {
   // q = Ad
   if (blockCountGPU != 0) {
     if (conf::gpuOptimizationLevel == 0) {
-      eventGPU = MatrixVectorOperations::matrixVectorBlock(
-          gpuQueue, A_gpu, d_gpu, q_gpu, 0, 0, blockCountGPU, A.blockCountXY,
-          A.blockCountXY);
+      eventGPU = MatrixVectorOperationsMixed::matrixVectorBlock(
+          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionVector, 0, 0, blockCountGPU,
+          A.blockCountXY, A.blockCountXY);
     } else {
-      eventGPU = MatrixVectorOperations::matrixVectorBlock_GPU(
-          gpuQueue, A_gpu, d_gpu, q_gpu, 0, 0, blockCountGPU, A.blockCountXY,
-          A.blockCountXY);
+      eventGPU = MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
+          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionVector, 0, 0, blockCountGPU,
+          A.blockCountXY, A.blockCountXY);
     }
   }
   if (blockCountCPU != 0) {
     if (conf::cpuOptimizationLevel == 0) {
-      eventCPU = MatrixVectorOperations::matrixVectorBlock(
-          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, blockStartCPU, 0,
-          blockCountCPU, A.blockCountXY, A.blockCountXY);
+      eventCPU = MatrixVectorOperationsMixed::matrixVectorBlock(
+          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionVector,
+          blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
     } else {
-      eventCPU = MatrixVectorOperations::matrixVectorBlock_CPU(
-          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, blockStartCPU, 0,
-          blockCountCPU, A.blockCountXY, A.blockCountXY);
+      eventCPU = MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
+          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionVector,
+          blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
     }
   }
   waitAllQueues();
@@ -1301,14 +1312,14 @@ void CGMixed::computeRealResidual() {
 
   // r = b - Ax
   if (blockCountGPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock_GPU(
-        gpuQueue, A_gpu, x_gpu, r_gpu, 0, 0, blockCountGPU, A.blockCountXY,
-        A.blockCountXY);
+    MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
+        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionVector, 0, 0, blockCountGPU,
+        A.blockCountXY, A.blockCountXY);
   }
   if (blockCountCPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock_CPU(
-        cpuQueue, A.matrixData.data(), x.data(), r_cpu, blockStartCPU, 0,
-        blockCountCPU, A.blockCountXY, A.blockCountXY);
+    MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
+        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionVector,
+        blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
   }
   waitAllQueues();
 

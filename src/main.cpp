@@ -283,6 +283,9 @@ int main(int argc, char *argv[]) {
     if (conf::algorithm == "cg") {
       CG cg(A, b, cpuQueue, gpuQueue, loadBalancer);
       cg.solveHeterogeneous();
+      std::cout << "Starting mixed CG..." << std::endl;
+      CGMixed cgm(TestingMatrix, b, cpuQueue, gpuQueue, loadBalancer);
+      cgm.solveHeterogeneous();
     } else if (conf::algorithm == "cholesky") {
       Cholesky cholesky(A, cpuQueue, gpuQueue, loadBalancer);
       cholesky.solve_heterogeneous();
