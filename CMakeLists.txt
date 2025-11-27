@@ -67,6 +67,8 @@ set(LIBRARY_FILES
         src/kernel/VectorOperations.hpp
         src/kernel/MatrixVectorOperations.cpp
         src/kernel/MatrixVectorOperations.hpp
+        src/kernel/MatrixVectorOperationsMixed.cpp
+        src/kernel/MatrixVectorOperationsMixed.hpp
         src/kernel/MatrixOperations.cpp
         src/kernel/MatrixOperations.hpp
         src/kernel/MatrixMatrixOperations.cpp
