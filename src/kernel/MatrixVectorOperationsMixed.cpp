@@ -19,8 +19,35 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
 
   const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
+  // Allocate USM memory for byte offsets
+  std::size_t *blockByteOffsets =
+      sycl::malloc_shared<std::size_t>(precisionVector.size(), queue);
+
+  // Allocate USM memory for precision types
+  int *precisionTypes = sycl::malloc_shared<int>(precisionVector.size(), queue);
+
+  // Calculate on host
+  std::size_t cumulative_offset = 0;
+  for (std::size_t i = 0; i < precisionVector.size(); ++i) {
+    blockByteOffsets[i] = cumulative_offset;
+
+    std::size_t elementByteSize = 0;
+    if (precisionVector[i] == Precision::FP16) {
+      elementByteSize = sizeof(sycl::half);
+      precisionTypes[i] = 2;
+    } else if (precisionVector[i] == Precision::FP32) {
+      elementByteSize = sizeof(float);
+      precisionTypes[i] = 4;
+    } else if (precisionVector[i] == Precision::FP64) {
+      elementByteSize = sizeof(double);
+      precisionTypes[i] = 8;
+    }
+
+    cumulative_offset += elementByteSize * matrixBlockSize * matrixBlockSize;
+  }
+
   const bool addToPreviousEntries = !reset;
-  char *A_bytes = static_cast<char *>(A);
+  unsigned char *A_bytes = static_cast<unsigned char *>(A);
 
   std::cout << "Beginning kernel..." << std::endl;
   sycl::event event = queue.submit([&](handler &h) {
@@ -50,18 +77,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         resultValue += result[i];
       }
 
-      // Helper lambda to convert Precision enum to byte size
-      auto getPrecisionByteSize = [](Precision p) -> std::size_t {
-        if (p == Precision::FP16) {
-          return sizeof(sycl::half);
-        } else if (p == Precision::FP32) {
-          return sizeof(float);
-        } else if (p == Precision::FP64) {
-          return sizeof(double);
-        }
-        return sizeof(conf::fp_type); // default
-      };
-
       // First step: Process all matrix blocks up to the diagonal block
       // (included) or the most left block that should be processed the blocks
       // can be interpreted as they are stored in memory
@@ -76,11 +91,9 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         // id of block in the matrix data structure for symmetric matrices
         blockID = block_i + referenceBlockCount - columnBlocksToRight;
 
-        // for (int element = 0; element < blockID; element++) {
-        //   std::size_t elementByteSize =
-        //       getPrecisionByteSize(precisionVector[element]);
-        //   byte_offset += elementByteSize * matrixBlockSize * matrixBlockSize;
-        // }
+        // Get pre-calculated byte offset and precision type from USM
+        byte_offset = blockByteOffsets[blockID];
+        int precision_type = precisionTypes[blockID];
 
         // startIndex of the current block with blockID in the symmetric matrix
         // data structure
@@ -89,22 +102,19 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         std::size_t rowStartIndex =
             static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
-        // Determine precision for this block
-        Precision precision = precisionVector[blockID];
-
         // go through all columns of the block and compute the matrix vector
         // product
         for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
           // Cast based on precision and access
           conf::fp_type a_value = 0;
-          if (precision == Precision::FP16) {
+          if (precision_type == 2) {
             sycl::half *A_fp16 =
                 reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[rowStartIndex + j];
-          } else if (precision == Precision::FP32) {
+          } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
             a_value = A_fp32[rowStartIndex + j];
-          } else if (precision == Precision::FP64) {
+          } else if (precision_type == 8) {
             double *A_fp64 = reinterpret_cast<double *>(A_bytes + byte_offset);
             a_value = A_fp64[rowStartIndex + j];
           }
@@ -127,14 +137,9 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         // id of block in the matrix data structure for symmetric matrices
         blockID = block_j + referenceBlockCount - columnBlocksToRight;
 
-        // for (int element = 0; element < blockID; element++) {
-        //   std::size_t elementByteSize =
-        //       getPrecisionByteSize(precisionVector[element]);
-        //   byte_offset += elementByteSize * matrixBlockSize * matrixBlockSize;
-        // }
-
-        // Determine precision for this block
-        Precision precision = precisionVector[blockID];
+        // Get pre-calculated byte offset and precision type from USM
+        byte_offset = blockByteOffsets[blockID];
+        int precision_type = precisionTypes[blockID];
 
         // go through all columns of the block and compute the matrix vector
         // product the block in storage now has to be interpreted as transposed
@@ -142,14 +147,14 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
           // Cast based on precision and access
           conf::fp_type a_value = 0;
-          if (precision == Precision::FP16) {
+          if (precision_type == 2) {
             sycl::half *A_fp16 =
                 reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[j * matrixBlockSize + iInBlock];
-          } else if (precision == Precision::FP32) {
+          } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
             a_value = A_fp32[j * matrixBlockSize + iInBlock];
-          } else if (precision == Precision::FP64) {
+          } else if (precision_type == 8) {
             double *A_fp64 = reinterpret_cast<double *>(A_bytes + byte_offset);
             a_value = A_fp64[j * matrixBlockSize + iInBlock];
           }

@@ -282,6 +282,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
                 // Add correct typing to both arrays according to block index
+                // TODO: fix wrong cast, need to add byte_offset for current
+                // block start based on previous blocks and their precisions
                 sycl::half *matrixDataTyped =
                     static_cast<sycl::half *>(matrixData);
                 conf::fp_type *trainingInputDataTyped =
