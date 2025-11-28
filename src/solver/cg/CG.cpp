@@ -810,11 +810,11 @@ void CGMixed::solveHeterogeneous() {
    *     δ_0 = δ_new
    */
   initCG(delta_zero, delta_new);
-  std::cout << "initCG" << std::endl;
 
   std::size_t iteration = 0;
 
   bool firstIteration = true;
+  std::cout << "First iteration true, delta_new: " << delta_new << std::endl;
 
   while (iteration < conf::iMax && delta_new > epsilon2 * delta_zero) {
     auto startIteration = std::chrono::steady_clock::now();
@@ -1159,6 +1159,8 @@ void CGMixed::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
     delta_new = delta_new + tmp_cpu[0];
   }
   delta_zero = delta_new;
+  std::cout << "Finished initCG with delta_zero: " << delta_zero
+            << " delta_new: " << delta_new << std::endl;
 }
 
 void CGMixed::compute_q() {

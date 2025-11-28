@@ -281,8 +281,8 @@ int main(int argc, char *argv[]) {
     GP.start();
   } else {
     if (conf::algorithm == "cg") {
-      CG cg(A, b, cpuQueue, gpuQueue, loadBalancer);
-      cg.solveHeterogeneous();
+      // CG cg(A, b, cpuQueue, gpuQueue, loadBalancer);
+      // cg.solveHeterogeneous();
       std::cout << "Starting mixed CG..." << std::endl;
       CGMixed cgm(TestingMatrix, b, cpuQueue, gpuQueue, loadBalancer);
       cgm.solveHeterogeneous();
