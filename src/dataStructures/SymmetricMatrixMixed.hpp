@@ -52,8 +52,8 @@ public:
    * storage
    * @param queue SYCL queue for allocating memory
    */
-  SymmetricMatrixMixed(std::size_t N, std::vector<Precision> precisionVector,
-                       int blockSize, sycl::queue &queue);
+  SymmetricMatrixMixed(std::size_t N, const int precisionTypes,
+                       sycl::queue &queue);
 
   // Size N of the NxN symmetric matrix
   const std::size_t N;
@@ -61,10 +61,13 @@ public:
   const int blockSize;
   // block Count in X/Y direction (if the matrix would be stored completely)
   const int blockCountXY;
-  // Vector containing array of precision per block in block order
-  const std::vector<Precision> precisionVector;
-  // Size of allocated matrix in bytes
-  std::size_t byteSize;
+  // SYCL shared memory containing array of precision per block in block order
+  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>>
+      precisionTypes;
+  // SYCL shared memory containing array of byte offset until current block
+  std::vector<std::size_t,
+              sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>>
+      blockByteOffsets;
 
   /// internal matrix data structure allocated as SYCL host memory
   std::vector<conf::fp_type,
