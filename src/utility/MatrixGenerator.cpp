@@ -1,7 +1,10 @@
 #include "MatrixGenerator.hpp"
 #include "Configuration.hpp"
 #include "SymmetricMatrixMixed.hpp"
+#include "hipSYCL/sycl/handler.hpp"
+#include "hipSYCL/sycl/usm.hpp"
 #include <cstddef>
+#include <ostream>
 #include <stdexcept>
 #include <vector>
 using namespace sycl;
@@ -196,22 +199,53 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 static_cast<double>(conf::matrixBlockSize));
 
   // Build testing mixed precision vector
-  std::vector<Precision> testPrecision{};
-  testPrecision.resize(matrixBlockCount * (matrixBlockCount + 1) / 2);
-  for (size_t index = 0; index < testPrecision.size(); index++) {
-    testPrecision[index] = (index % 2 == 0) ? Precision::FP16 : Precision::FP32;
+  std::vector<Precision> precisionVector{};
+  precisionVector.resize(matrixBlockCount * (matrixBlockCount + 1) / 2);
+  for (size_t index = 0; index < precisionVector.size(); index++) {
+    precisionVector[index] =
+        (index % 2 == 0) ? Precision::FP16 : Precision::FP32;
   }
 
-  SymmetricMatrixMixed matrix(conf::N, testPrecision, conf::matrixBlockSize,
-                              queueGPU);
+  // Build and allocate matrix memory
+  SymmetricMatrixMixed matrix(conf::N, conf::matrixBlockSize, queueGPU);
 
+  // Prepare memory pointers for precision index data
+  std::size_t *blockByteOffsets = matrix.blockByteOffsets.data();
+  int *precisionTypes = matrix.precisionTypes.data();
+
+  // Calculate mixed precision block memory byte offsets
+  std::size_t cumulative_offset = 0;
+  for (std::size_t i = 0; i < precisionVector.size(); ++i) {
+    blockByteOffsets[i] = cumulative_offset;
+
+    std::size_t elementByteSize = 0;
+    if (precisionVector[i] == Precision::FP16) {
+      elementByteSize = sizeof(sycl::half);
+      precisionTypes[i] = 2;
+    } else if (precisionVector[i] == Precision::FP32) {
+      elementByteSize = sizeof(float);
+      precisionTypes[i] = 4;
+    } else if (precisionVector[i] == Precision::FP64) {
+      elementByteSize = sizeof(double);
+      precisionTypes[i] = 8;
+    }
+
+    cumulative_offset +=
+        elementByteSize * conf::matrixBlockSize * conf::matrixBlockSize;
+  }
+
+  std::cout << "Calculated offsets and precisions" << std::endl;
+
+  // Build temporary input data vector
   std::size_t nRegressors = 8;
   std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
       trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
   std::size_t offset = nRegressors - 1;
   trainingInput.resize(conf::N + offset);
 
-  void *matrixData = matrix.matrixData.data();
+  // Prepare memory pointers
+  unsigned char *matrixBytes =
+      reinterpret_cast<unsigned char *>(matrix.matrixData.data());
   conf::fp_type *trainingInputData = trainingInput.data();
 
   std::ifstream dataInputStream(path);
@@ -250,15 +284,7 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
       // id of block in the matrix data structure for symmetric matrices
       const int blockID = i_block + referenceBlockCount - columnBlocksToRight;
 
-      // Precision of current block
-      Precision blockPrec = matrix.precisionVector[blockID];
-      if (blockPrec == Precision::FP16) {
-        std::cout << "Current block precision is FP16" << std::endl;
-      } else if (blockPrec == Precision::FP32) {
-        std::cout << "Current block precision is FP32" << std::endl;
-      } else if (blockPrec == Precision::FP64) {
-        std::cout << "Current block precision is FP64" << std::endl;
-      }
+      const std::size_t byteOffset = blockByteOffsets[blockID];
 
       // start index of block in matrix data structure
       const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) *
@@ -274,18 +300,14 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
 
       std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-      if (blockPrec == Precision::FP16) {
-        matrix.byteSize +=
-            matrixBlockSize * matrixBlockSize * sizeof(sycl::half);
-
+      std::cout << "Filling block: " << i_block + j_block << std::endl;
+      if (precisionTypes[blockID] == 2) {
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
                 // Add correct typing to both arrays according to block index
-                // TODO: fix wrong cast, need to add byte_offset for current
-                // block start based on previous blocks and their precisions
                 sycl::half *matrixDataTyped =
-                    static_cast<sycl::half *>(matrixData);
+                    reinterpret_cast<sycl::half *>(matrixBytes + byteOffset);
                 conf::fp_type *trainingInputDataTyped =
                     static_cast<conf::fp_type *>(trainingInputData);
                 const unsigned int i_local = idx[0];
@@ -315,14 +337,13 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
               });
         });
 
-      } else if (blockPrec == Precision::FP32) {
-        matrix.byteSize += matrixBlockSize * matrixBlockSize * sizeof(float);
-
+      } else if (precisionTypes[blockID] == 4) {
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
                 // Add correct typing to both arrays according to block index
-                float *matrixDataTyped = static_cast<float *>(matrixData);
+                float *matrixDataTyped =
+                    reinterpret_cast<float *>(matrixBytes + byteOffset);
                 conf::fp_type *trainingInputDataTyped =
                     static_cast<conf::fp_type *>(trainingInputData);
                 const unsigned int i_local = idx[0];
@@ -352,14 +373,13 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
               });
         });
 
-      } else if (blockPrec == Precision::FP64) {
-        matrix.byteSize += matrixBlockSize * matrixBlockSize * sizeof(double);
-
+      } else if (precisionTypes[blockID] == 8) {
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
                 // Add correct typing to both arrays according to block index
-                double *matrixDataTyped = static_cast<double *>(matrixData);
+                double *matrixDataTyped =
+                    reinterpret_cast<double *>(matrixBytes + byteOffset);
                 conf::fp_type *trainingInputDataTyped =
                     static_cast<conf::fp_type *>(trainingInputData);
                 const unsigned int i_local = idx[0];
@@ -397,6 +417,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
   }
   queue.wait();
 
+  std::cout << "Generated matrix structure in MatrixGenerator.cpp!"
+            << std::endl;
   return matrix;
 }
 

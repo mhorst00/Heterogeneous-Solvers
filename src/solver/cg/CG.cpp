@@ -947,15 +947,16 @@ void CGMixed::initGPUdataStructures() {
       6 * b.rightHandSideData.size() * sizeof(conf::fp_type);
 
   std::size_t maxBlocksGPUMemory = 0;
-  std::size_t gpuUsedMemory = 0;
+  std::size_t currentBlockEnd = 0;
 
   // Calculate how many mixed precision blocks can fit into available GPU memory
   // Assumes always starting at the beginning of matrix
-  for (Precision block : A.precisionVector) {
-    if (gpuUsedMemory >= gpuAvailableMemorySize) {
+  for (std::size_t i = 0; i < A.precisionTypes.size(); ++i) {
+    currentBlockEnd =
+        A.precisionTypes[i] * A.blockSize * A.blockSize + A.blockByteOffsets[i];
+    if (currentBlockEnd >= gpuAvailableMemorySize) {
       break;
     }
-    gpuUsedMemory = gpuUsedMemory + A.blockSize * A.blockSize * block;
     maxBlocksGPUMemory++;
   }
 
@@ -980,7 +981,7 @@ void CGMixed::initGPUdataStructures() {
           totalBlockCountA - (rowsLowerPart * (rowsLowerPart + 1) / 2);
 
       for (std::size_t block = 0; block < blocksGPUMemory; block++) {
-        bytesGPU += A.precisionVector[block] * conf::matrixBlockSize *
+        bytesGPU += A.precisionTypes[block] * conf::matrixBlockSize *
                     conf::matrixBlockSize;
       }
 
@@ -997,7 +998,10 @@ void CGMixed::initGPUdataStructures() {
   } else {
     maxBlockCountGPU = A.blockCountXY;
     // Whole matrix A fits into GPU memory
-    bytesGPU = A.byteSize;
+    // Get last known byte offset and add last block on top
+    bytesGPU = A.blockByteOffsets[A.blockByteOffsets.size() - 1] +
+               A.precisionTypes[A.precisionTypes.size() - 1] * A.blockSize *
+                   A.blockSize;
   }
 
   // Matrix A GPU
@@ -1084,13 +1088,15 @@ void CGMixed::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
   // r = b - Ax
   if (blockCountGPU != 0) {
     MatrixVectorOperationsMixed::matrixVectorBlock(
-        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionVector, 0, 0, blockCountGPU,
-        A.blockCountXY, A.blockCountXY);
+        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
+        A.blockCountXY);
   }
   if (blockCountCPU != 0) {
     MatrixVectorOperationsMixed::matrixVectorBlock(
-        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionVector,
-        blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
+        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+        A.blockCountXY, A.blockCountXY);
   }
   waitAllQueues();
   std::cout << "Completed r = b - Ax" << std::endl;
@@ -1193,23 +1199,27 @@ void CGMixed::compute_q() {
   if (blockCountGPU != 0) {
     if (conf::gpuOptimizationLevel == 0) {
       eventGPU = MatrixVectorOperationsMixed::matrixVectorBlock(
-          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionVector, 0, 0, blockCountGPU,
-          A.blockCountXY, A.blockCountXY);
+          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
+          A.blockCountXY);
     } else {
       eventGPU = MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
-          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionVector, 0, 0, blockCountGPU,
-          A.blockCountXY, A.blockCountXY);
+          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
+          A.blockCountXY);
     }
   }
   if (blockCountCPU != 0) {
     if (conf::cpuOptimizationLevel == 0) {
       eventCPU = MatrixVectorOperationsMixed::matrixVectorBlock(
-          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionVector,
-          blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
+          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+          A.blockCountXY, A.blockCountXY);
     } else {
       eventCPU = MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
-          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionVector,
-          blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
+          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+          A.blockCountXY, A.blockCountXY);
     }
   }
   waitAllQueues();
@@ -1315,13 +1325,15 @@ void CGMixed::computeRealResidual() {
   // r = b - Ax
   if (blockCountGPU != 0) {
     MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
-        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionVector, 0, 0, blockCountGPU,
-        A.blockCountXY, A.blockCountXY);
+        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
+        A.blockCountXY);
   }
   if (blockCountCPU != 0) {
     MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
-        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionVector,
-        blockStartCPU, 0, blockCountCPU, A.blockCountXY, A.blockCountXY);
+        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+        A.blockCountXY, A.blockCountXY);
   }
   waitAllQueues();
 
