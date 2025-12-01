@@ -791,8 +791,6 @@ void CGMixed::solveHeterogeneous() {
       std::chrono::duration<double, std::milli>(endMemInit - startMemInit)
           .count();
 
-  std::cout << "Built mixed CG data structures" << std::endl;
-
   // variables for cg algorithm
   conf::fp_type delta_new = 0;
   conf::fp_type delta_old = 0;
@@ -814,38 +812,31 @@ void CGMixed::solveHeterogeneous() {
   std::size_t iteration = 0;
 
   bool firstIteration = true;
-  std::cout << "First iteration true, delta_new: " << delta_new << std::endl;
 
   while (iteration < conf::iMax && delta_new > epsilon2 * delta_zero) {
     auto startIteration = std::chrono::steady_clock::now();
 
     if (iteration % loadBalancer->updateInterval == 0 && !firstIteration) {
       rebalanceProportions(gpuProportion);
-      std::cout << "rebalance" << std::endl;
     }
 
     auto timePoint1 = std::chrono::steady_clock::now();
     compute_q(); // q = Ad
-    std::cout << "compute_q" << std::endl;
 
     auto timePoint2 = std::chrono::steady_clock::now();
     compute_alpha(alpha, delta_new); // 𝛼 = δ_new / d^T * q
-    std::cout << "compute_alpha" << std::endl;
 
     auto timePoint3 = std::chrono::steady_clock::now();
     update_x(alpha); // x = x + 𝛼d
-    std::cout << "update_x" << std::endl;
 
     auto timePoint4 = std::chrono::steady_clock::now();
     if (iteration % 50 == 0) {
       // compute real residual every 50 iterations --> requires additional
       // matrix vector product
       computeRealResidual(); // r = b - Ax
-      std::cout << "computeRealResidual" << std::endl;
     } else {
       // compute residual without an additional matrix vector product
       update_r(alpha); // r = r - 𝛼q
-      std::cout << "update_r" << std::endl;
     }
 
     auto timePoint5 = std::chrono::steady_clock::now();
@@ -854,7 +845,6 @@ void CGMixed::solveHeterogeneous() {
     auto timePoint6 = std::chrono::steady_clock::now();
     beta = delta_new / delta_old; // β = δ_new / δ_old
     compute_d(beta);              // d = r + βd
-    std::cout << "Computed deltas" << std::endl;
 
     auto endIteration = std::chrono::steady_clock::now();
     auto iterationTime =
@@ -1099,7 +1089,6 @@ void CGMixed::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
         A.blockCountXY, A.blockCountXY);
   }
   waitAllQueues();
-  std::cout << "Completed r = b - Ax" << std::endl;
 
   if (blockCountGPU != 0) {
     VectorOperations::subVectorBlock(gpuQueue, b_gpu, r_gpu, r_gpu, 0,
