@@ -17,9 +17,11 @@
 #include "MatrixParser.hpp"
 #include "MatrixVectorOperations.hpp"
 #include "PowerLoadBalancer.hpp"
+#include "RightHandSide.hpp"
 #include "RuntimeLoadBalancer.hpp"
 #include "StaticLoadBalancer.hpp"
 #include "SymmetricMatrix.hpp"
+#include "SymmetricMatrixMixed.hpp"
 #include "UtilityFunctions.hpp"
 #include "cholesky/Cholesky.hpp"
 #include "cholesky/TriangularSystemSolver.hpp"
@@ -97,8 +99,7 @@ int main(int argc, char *argv[]) {
       "cpu_opt",
       "optimization level 0-2 for CPU optimized matrix-matrix kernel (higher "
       "values for more optimized kernels)",
-      cxxopts::value<int>())("print_verbose",
-                             "enable/disable verbose console output",
+      cxxopts::value<int>())("verbose", "enable/disable verbose console output",
                              cxxopts::value<bool>())(
       "check_result",
       "enable/disable result check that outputs error of Ax - b",
@@ -107,7 +108,8 @@ int main(int argc, char *argv[]) {
       "enable/disable hws tracking of solving step for cholesky",
       cxxopts::value<bool>())("gpr",
                               "perform gaussian process regression (GPR)",
-                              cxxopts::value<bool>());
+                              cxxopts::value<bool>())(
+      "mixed", "enable mixed precision mode", cxxopts::value<bool>());
 
   const auto arguments = argumentOptions.parse(argc, argv);
 
@@ -219,8 +221,8 @@ int main(int argc, char *argv[]) {
     conf::cpuOptimizationLevel = arguments["cpu_opt"].as<int>();
   }
 
-  if (arguments.count("print_verbose")) {
-    conf::printVerbose = arguments["print_verbose"].as<bool>();
+  if (arguments.count("verbose")) {
+    conf::printVerbose = arguments["verbose"].as<bool>();
   }
 
   if (arguments.count("check_result")) {
@@ -229,6 +231,10 @@ int main(int argc, char *argv[]) {
 
   if (arguments.count("track_chol_solve")) {
     conf::trackCholeskySolveStep = arguments["track_chol_solve"].as<bool>();
+  }
+
+  if (arguments.count("mixed")) {
+    conf::mixed = arguments["mixed"].as<bool>();
   }
 
   sycl::property_list properties{sycl::property::queue::enable_profiling()};
@@ -245,6 +251,13 @@ int main(int argc, char *argv[]) {
   UtilityFunctions::measureIdlePowerCPU();
 
   // generate or parse Symmetric matrix
+  SymmetricMatrixMixed TestingMatrix = MatrixGenerator::generateSPDMatrixMixed(
+      path_gp_input, cpuQueue, gpuQueue);
+
+  RightHandSide TestingSide =
+      MatrixGenerator::parseRHS_GP(path_gp_output, gpuQueue);
+
+  std::cout << "Successfully built mixed precision matrix!" << std::endl;
   RightHandSide b = generateMatrix
                         ? MatrixGenerator::parseRHS_GP(path_gp_output, gpuQueue)
                         : MatrixParser::parseRightHandSide(path_b, gpuQueue);
@@ -253,11 +266,6 @@ int main(int argc, char *argv[]) {
       generateMatrix ? MatrixGenerator::generateSPDMatrix(path_gp_input,
                                                           cpuQueue, gpuQueue)
                      : MatrixParser::parseSymmetricMatrix(path_A, gpuQueue);
-
-  SymmetricMatrixMixed TestingMatrix = MatrixGenerator::generateSPDMatrixMixed(
-      path_gp_input, cpuQueue, gpuQueue);
-
-  std::cout << "Successfully built mixed precision matrix!" << std::endl;
 
   std::shared_ptr<LoadBalancer> loadBalancer;
   if (conf::mode == "static") {
@@ -281,11 +289,26 @@ int main(int argc, char *argv[]) {
     GP.start();
   } else {
     if (conf::algorithm == "cg") {
-      // CG cg(A, b, cpuQueue, gpuQueue, loadBalancer);
-      // cg.solveHeterogeneous();
-      std::cout << "Starting mixed CG..." << std::endl;
-      CGMixed cgm(TestingMatrix, b, cpuQueue, gpuQueue, loadBalancer);
-      cgm.solveHeterogeneous();
+      if (conf::mixed) {
+        CGMixed cgm(TestingMatrix, TestingSide, cpuQueue, gpuQueue,
+                    loadBalancer);
+        cgm.solveHeterogeneous();
+
+        if (conf::checkResult) {
+          double error = UtilityFunctions::checkResult(
+              TestingSide, cpuQueue, gpuQueue, path_gp_input, path_gp_output);
+          std::cout << "Average error of Ax - b: " << error << std::endl;
+        }
+      } else if (!conf::mixed) {
+        CG cg(A, b, cpuQueue, gpuQueue, loadBalancer);
+        cg.solveHeterogeneous();
+
+        if (conf::checkResult) {
+          double error = UtilityFunctions::checkResult(
+              b, cpuQueue, gpuQueue, path_gp_input, path_gp_output);
+          std::cout << "Average error of Ax - b: " << error << std::endl;
+        }
+      }
     } else if (conf::algorithm == "cholesky") {
       Cholesky cholesky(A, cpuQueue, gpuQueue, loadBalancer);
       cholesky.solve_heterogeneous();
