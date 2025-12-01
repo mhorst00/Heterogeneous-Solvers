@@ -1,7 +1,7 @@
 ACPP_PREFIX := "/opt/acpp"
 ACPP_VERSION := "v25.10.0"
 GPU_VENDOR := "AMD"
-FP64 := "false"
+FP64 := "true"
 
 default:
   @just --list
