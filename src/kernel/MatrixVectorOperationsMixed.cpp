@@ -21,7 +21,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
 
   unsigned char *A_bytes = static_cast<unsigned char *>(A);
 
-  std::cout << "Beginning kernel..." << std::endl;
   sycl::event event = queue.submit([&](handler &h) {
     h.parallel_for(kernelRange, [=](auto &nd_item) {
       // row i in the matrix

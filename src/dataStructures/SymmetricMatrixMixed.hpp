@@ -52,8 +52,7 @@ public:
    * storage
    * @param queue SYCL queue for allocating memory
    */
-  SymmetricMatrixMixed(std::size_t N, const int precisionTypes,
-                       sycl::queue &queue);
+  SymmetricMatrixMixed(std::size_t N, const int blockSize, sycl::queue &queue);
 
   // Size N of the NxN symmetric matrix
   const std::size_t N;
