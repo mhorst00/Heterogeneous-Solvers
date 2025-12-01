@@ -4,6 +4,7 @@
 #include "hipSYCL/sycl/handler.hpp"
 #include "hipSYCL/sycl/usm.hpp"
 #include <cstddef>
+#include <cstdlib>
 #include <ostream>
 #include <stdexcept>
 #include <vector>
@@ -193,21 +194,27 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
   std::cout << "-- generating mixed precision SPD matrix of size " << conf::N
             << "x" << conf::N << std::endl;
 
-  // Computing matrix block count to build vector of block precisions
-  std::size_t matrixBlockCount =
-      std::ceil(static_cast<double>(conf::N) /
-                static_cast<double>(conf::matrixBlockSize));
+  // Build and allocate matrix memory
+  SymmetricMatrixMixed matrix(conf::N, conf::matrixBlockSize, queueGPU);
 
   // Build testing mixed precision vector
   std::vector<Precision> precisionVector{};
-  precisionVector.resize(matrixBlockCount * (matrixBlockCount + 1) / 2);
-  for (size_t index = 0; index < precisionVector.size(); index++) {
-    precisionVector[index] =
-        (index % 2 == 0) ? Precision::FP16 : Precision::FP32;
+  precisionVector.resize(matrix.blockCountXY * (matrix.blockCountXY + 1) / 2);
+  int continuous_index = 0;
+  int distance = 0;
+  for (int col = 0; col < matrix.blockCountXY; ++col) {
+    for (int row = col; row < matrix.blockCountXY; ++row) {
+      distance = std::abs(row - col);
+      if (distance < 20) {
+        precisionVector[continuous_index] = Precision::FP64;
+      } else if (distance < 50) {
+        precisionVector[continuous_index] = Precision::FP32;
+      } else {
+        precisionVector[continuous_index] = Precision::FP16;
+      }
+      continuous_index++;
+    }
   }
-
-  // Build and allocate matrix memory
-  SymmetricMatrixMixed matrix(conf::N, conf::matrixBlockSize, queueGPU);
 
   // Prepare memory pointers for precision index data
   std::size_t *blockByteOffsets = matrix.blockByteOffsets.data();
@@ -233,8 +240,6 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
     cumulative_offset +=
         elementByteSize * conf::matrixBlockSize * conf::matrixBlockSize;
   }
-
-  std::cout << "Calculated offsets and precisions" << std::endl;
 
   // Build temporary input data vector
   std::size_t nRegressors = 8;
@@ -300,7 +305,6 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
 
       std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-      std::cout << "Filling block: " << i_block + j_block << std::endl;
       if (precisionTypes[blockID] == 2) {
         queue.submit([&](handler &h) {
           h.parallel_for(
@@ -308,8 +312,6 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 // Add correct typing to both arrays according to block index
                 sycl::half *matrixDataTyped =
                     reinterpret_cast<sycl::half *>(matrixBytes + byteOffset);
-                conf::fp_type *trainingInputDataTyped =
-                    static_cast<conf::fp_type *>(trainingInputData);
                 const unsigned int i_local = idx[0];
                 const unsigned int j_local = idx[1];
                 const unsigned long i_global =
@@ -321,8 +323,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 }
                 sycl::half distance = 0.0;
                 for (unsigned int k = 0; k < nRegressors; k++) {
-                  const sycl::half tmp = trainingInputDataTyped[i_global + k] -
-                                         trainingInputDataTyped[j_global + k];
+                  const sycl::half tmp = trainingInputData[i_global + k] -
+                                         trainingInputData[j_global + k];
                   distance += tmp * tmp;
                 }
                 sycl::half covarianceFunction =
@@ -332,8 +334,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 if (i_global == j_global) {
                   covarianceFunction += noiseVariance;
                 }
-                matrixDataTyped[blockStartIndex + i_local * matrixBlockSize +
-                                j_local] = covarianceFunction;
+                matrixDataTyped[i_local * matrixBlockSize + j_local] =
+                    covarianceFunction;
               });
         });
 
@@ -344,8 +346,6 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 // Add correct typing to both arrays according to block index
                 float *matrixDataTyped =
                     reinterpret_cast<float *>(matrixBytes + byteOffset);
-                conf::fp_type *trainingInputDataTyped =
-                    static_cast<conf::fp_type *>(trainingInputData);
                 const unsigned int i_local = idx[0];
                 const unsigned int j_local = idx[1];
                 const unsigned long i_global =
@@ -357,8 +357,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 }
                 float distance = 0.0;
                 for (unsigned int k = 0; k < nRegressors; k++) {
-                  const float tmp = trainingInputDataTyped[i_global + k] -
-                                    trainingInputDataTyped[j_global + k];
+                  const float tmp = trainingInputData[i_global + k] -
+                                    trainingInputData[j_global + k];
                   distance += tmp * tmp;
                 }
                 float covarianceFunction =
@@ -368,8 +368,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 if (i_global == j_global) {
                   covarianceFunction += noiseVariance;
                 }
-                matrixDataTyped[blockStartIndex + i_local * matrixBlockSize +
-                                j_local] = covarianceFunction;
+                matrixDataTyped[i_local * matrixBlockSize + j_local] =
+                    covarianceFunction;
               });
         });
 
@@ -380,8 +380,6 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 // Add correct typing to both arrays according to block index
                 double *matrixDataTyped =
                     reinterpret_cast<double *>(matrixBytes + byteOffset);
-                conf::fp_type *trainingInputDataTyped =
-                    static_cast<conf::fp_type *>(trainingInputData);
                 const unsigned int i_local = idx[0];
                 const unsigned int j_local = idx[1];
                 const unsigned long i_global =
@@ -393,8 +391,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 }
                 double distance = 0.0;
                 for (unsigned int k = 0; k < nRegressors; k++) {
-                  const double tmp = trainingInputDataTyped[i_global + k] -
-                                     trainingInputDataTyped[j_global + k];
+                  const double tmp = trainingInputData[i_global + k] -
+                                     trainingInputData[j_global + k];
                   distance += tmp * tmp;
                 }
                 double covarianceFunction =
@@ -404,8 +402,8 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                 if (i_global == j_global) {
                   covarianceFunction += noiseVariance;
                 }
-                matrixDataTyped[blockStartIndex + i_local * matrixBlockSize +
-                                j_local] = covarianceFunction;
+                matrixDataTyped[i_local * matrixBlockSize + j_local] =
+                    covarianceFunction;
               });
         });
 
@@ -417,8 +415,6 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
   }
   queue.wait();
 
-  std::cout << "Generated matrix structure in MatrixGenerator.cpp!"
-            << std::endl;
   return matrix;
 }
 
