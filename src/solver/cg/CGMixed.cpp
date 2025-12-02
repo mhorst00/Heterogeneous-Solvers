@@ -1,11 +1,10 @@
-#include "CG.hpp"
+#include "CGMixed.hpp"
 
 #include <cstddef>
 #include <iostream>
 #include <sycl/sycl.hpp>
 
 #include "Configuration.hpp"
-#include "MatrixVectorOperations.hpp"
 #include "MatrixVectorOperationsMixed.hpp"
 #include "SymmetricMatrixMixed.hpp"
 #include "UtilityFunctions.hpp"
@@ -13,8 +12,8 @@
 
 using namespace sycl;
 
-CG::CG(SymmetricMatrix &A, RightHandSide &b, queue &cpuQueue, queue &gpuQueue,
-       std::shared_ptr<LoadBalancer> loadBalancer)
+CGMixed::CGMixed(SymmetricMatrixMixed &A, RightHandSide &b, queue &cpuQueue,
+                 queue &gpuQueue, std::shared_ptr<LoadBalancer> loadBalancer)
     : A(A), b(b),
       x(sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>(cpuQueue)),
       cpuQueue(cpuQueue), gpuQueue(gpuQueue),
@@ -35,7 +34,7 @@ CG::CG(SymmetricMatrix &A, RightHandSide &b, queue &cpuQueue, queue &gpuQueue,
   x.resize(b.rightHandSideData.size());
 }
 
-void CG::solveHeterogeneous() {
+void CGMixed::solveHeterogeneous() {
   const auto start = std::chrono::steady_clock::now();
   metricsTracker.startTracking();
 
@@ -190,7 +189,7 @@ void CG::solveHeterogeneous() {
   freeDataStructures();
 }
 
-void CG::initGPUdataStructures() {
+void CGMixed::initGPUdataStructures() {
   if (blockCountGPU == 0) {
     return;
   }
@@ -200,14 +199,24 @@ void CG::initGPUdataStructures() {
                 .get_info<sycl::info::device::global_mem_size>() -
       6 * b.rightHandSideData.size() * sizeof(conf::fp_type);
 
-  const double maxBlocksGPUMemory = std::floor(
-      static_cast<double>(gpuAvailableMemorySize) /
-      (static_cast<double>(conf::matrixBlockSize) *
-       static_cast<double>(conf::matrixBlockSize) * sizeof(conf::fp_type)));
+  std::size_t maxBlocksGPUMemory = 0;
+  std::size_t currentBlockEnd = 0;
 
-  const int totalBlockCountA = (A.blockCountXY * (A.blockCountXY + 1) / 2);
+  // Calculate how many mixed precision blocks can fit into available GPU memory
+  // Assumes always starting at the beginning of matrix
+  for (std::size_t i = 0; i < A.precisionTypes.size(); ++i) {
+    currentBlockEnd =
+        A.precisionTypes[i] * A.blockSize * A.blockSize + A.blockByteOffsets[i];
+    if (currentBlockEnd >= gpuAvailableMemorySize) {
+      break;
+    }
+    maxBlocksGPUMemory++;
+  }
 
-  std::size_t valuesGPU;
+  const std::size_t totalBlockCountA =
+      (A.blockCountXY * (A.blockCountXY + 1) / 2);
+
+  std::size_t bytesGPU = 0;
   if (maxBlocksGPUMemory < totalBlockCountA) {
     // GPU memory is not sufficient to store the whole matrix --> calculate
     // maximum number of rows that can be stored
@@ -224,8 +233,10 @@ void CG::initGPUdataStructures() {
       const std::size_t blocksGPUMemory =
           totalBlockCountA - (rowsLowerPart * (rowsLowerPart + 1) / 2);
 
-      valuesGPU =
-          blocksGPUMemory * conf::matrixBlockSize * conf::matrixBlockSize;
+      for (std::size_t block = 0; block < blocksGPUMemory; block++) {
+        bytesGPU += A.precisionTypes[block] * conf::matrixBlockSize *
+                    conf::matrixBlockSize;
+      }
 
       maxBlockCountGPU = maxRowsGPUMemory;
 
@@ -240,15 +251,17 @@ void CG::initGPUdataStructures() {
   } else {
     maxBlockCountGPU = A.blockCountXY;
     // Whole matrix A fits into GPU memory
-    valuesGPU = A.matrixData.size();
+    // Get last known byte offset and add last block on top
+    bytesGPU = A.blockByteOffsets[A.blockByteOffsets.size() - 1] +
+               A.precisionTypes[A.precisionTypes.size() - 1] * A.blockSize *
+                   A.blockSize;
   }
 
   // Matrix A GPU
-  A_gpu = malloc_device<conf::fp_type>(valuesGPU, gpuQueue);
+  A_gpu = malloc_device(bytesGPU, gpuQueue);
   gpuQueue
-      .submit([&](handler &h) {
-        h.memcpy(A_gpu, A.matrixData.data(), valuesGPU * sizeof(conf::fp_type));
-      })
+      .submit(
+          [&](handler &h) { h.memcpy(A_gpu, A.matrixData.data(), bytesGPU); })
       .wait();
 
   // Right-hand side b GPU
@@ -282,7 +295,7 @@ void CG::initGPUdataStructures() {
   }
 }
 
-void CG::initCPUdataStructures() {
+void CGMixed::initCPUdataStructures() {
   if (blockCountCPU == 0) {
     return;
   }
@@ -305,7 +318,7 @@ void CG::initCPUdataStructures() {
   }
 }
 
-void CG::freeDataStructures() {
+void CGMixed::freeDataStructures() {
   if (blockCountGPU != 0) {
     sycl::free(A_gpu, gpuQueue);
     sycl::free(b_gpu, gpuQueue);
@@ -324,17 +337,19 @@ void CG::freeDataStructures() {
   }
 }
 
-void CG::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
+void CGMixed::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
   // r = b - Ax
   if (blockCountGPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock(gpuQueue, A_gpu, x_gpu, r_gpu, 0,
-                                              0, blockCountGPU, A.blockCountXY,
-                                              A.blockCountXY);
+    MatrixVectorOperationsMixed::matrixVectorBlock(
+        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
+        A.blockCountXY);
   }
   if (blockCountCPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock(
-        cpuQueue, A.matrixData.data(), x.data(), r_cpu, blockStartCPU, 0,
-        blockCountCPU, A.blockCountXY, A.blockCountXY);
+    MatrixVectorOperationsMixed::matrixVectorBlock(
+        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+        A.blockCountXY, A.blockCountXY);
   }
   waitAllQueues();
 
@@ -402,9 +417,11 @@ void CG::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
     delta_new = delta_new + tmp_cpu[0];
   }
   delta_zero = delta_new;
+  std::cout << "Finished initCG with delta_zero: " << delta_zero
+            << " delta_new: " << delta_new << std::endl;
 }
 
-void CG::compute_q() {
+void CGMixed::compute_q() {
   auto startmemcpy = std::chrono::steady_clock::now();
 
   if ((blockCountGPU != 0 && blockCountCPU != 0)) {
@@ -433,24 +450,28 @@ void CG::compute_q() {
   // q = Ad
   if (blockCountGPU != 0) {
     if (conf::gpuOptimizationLevel == 0) {
-      eventGPU = MatrixVectorOperations::matrixVectorBlock(
-          gpuQueue, A_gpu, d_gpu, q_gpu, 0, 0, blockCountGPU, A.blockCountXY,
+      eventGPU = MatrixVectorOperationsMixed::matrixVectorBlock(
+          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
           A.blockCountXY);
     } else {
-      eventGPU = MatrixVectorOperations::matrixVectorBlock_GPU(
-          gpuQueue, A_gpu, d_gpu, q_gpu, 0, 0, blockCountGPU, A.blockCountXY,
+      eventGPU = MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
+          gpuQueue, A_gpu, d_gpu, q_gpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
           A.blockCountXY);
     }
   }
   if (blockCountCPU != 0) {
     if (conf::cpuOptimizationLevel == 0) {
-      eventCPU = MatrixVectorOperations::matrixVectorBlock(
-          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, blockStartCPU, 0,
-          blockCountCPU, A.blockCountXY, A.blockCountXY);
+      eventCPU = MatrixVectorOperationsMixed::matrixVectorBlock(
+          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+          A.blockCountXY, A.blockCountXY);
     } else {
-      eventCPU = MatrixVectorOperations::matrixVectorBlock_CPU(
-          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, blockStartCPU, 0,
-          blockCountCPU, A.blockCountXY, A.blockCountXY);
+      eventCPU = MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
+          cpuQueue, A.matrixData.data(), d_cpu, q_cpu, A.precisionTypes.data(),
+          A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+          A.blockCountXY, A.blockCountXY);
     }
   }
   waitAllQueues();
@@ -483,7 +504,7 @@ void CG::compute_q() {
   }
 }
 
-void CG::compute_alpha(conf::fp_type &alpha, conf::fp_type &delta_new) {
+void CGMixed::compute_alpha(conf::fp_type &alpha, conf::fp_type &delta_new) {
   unsigned int workGroupCountScalarProduct_GPU = 0;
   unsigned int workGroupCountScalarProduct_CPU = 0;
 
@@ -523,7 +544,7 @@ void CG::compute_alpha(conf::fp_type &alpha, conf::fp_type &delta_new) {
   alpha = delta_new / result;
 }
 
-void CG::update_x(conf::fp_type alpha) {
+void CGMixed::update_x(conf::fp_type alpha) {
   // x = x + 𝛼d
   if (blockCountGPU != 0) {
     VectorOperations::scaleAndAddVectorBlock(gpuQueue, x_gpu, alpha, d_gpu,
@@ -537,7 +558,7 @@ void CG::update_x(conf::fp_type alpha) {
   waitAllQueues();
 }
 
-void CG::computeRealResidual() {
+void CGMixed::computeRealResidual() {
   if ((blockCountGPU != 0 && blockCountCPU != 0)) {
     // exchange parts of x vector so that both CPU and GPU hold the complete
     // vector
@@ -555,14 +576,16 @@ void CG::computeRealResidual() {
 
   // r = b - Ax
   if (blockCountGPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock_GPU(
-        gpuQueue, A_gpu, x_gpu, r_gpu, 0, 0, blockCountGPU, A.blockCountXY,
+    MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
+        gpuQueue, A_gpu, x_gpu, r_gpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), 0, 0, blockCountGPU, A.blockCountXY,
         A.blockCountXY);
   }
   if (blockCountCPU != 0) {
-    MatrixVectorOperations::matrixVectorBlock_CPU(
-        cpuQueue, A.matrixData.data(), x.data(), r_cpu, blockStartCPU, 0,
-        blockCountCPU, A.blockCountXY, A.blockCountXY);
+    MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
+        cpuQueue, A.matrixData.data(), x.data(), r_cpu, A.precisionTypes.data(),
+        A.blockByteOffsets.data(), blockStartCPU, 0, blockCountCPU,
+        A.blockCountXY, A.blockCountXY);
   }
   waitAllQueues();
 
@@ -578,7 +601,7 @@ void CG::computeRealResidual() {
   waitAllQueues();
 }
 
-void CG::update_r(conf::fp_type alpha) {
+void CGMixed::update_r(conf::fp_type alpha) {
   // r = r - 𝛼q
   if (blockCountGPU != 0) {
     VectorOperations::scaleAndAddVectorBlock(gpuQueue, r_gpu, -1.0 * alpha,
@@ -592,7 +615,7 @@ void CG::update_r(conf::fp_type alpha) {
   waitAllQueues();
 }
 
-void CG::compute_delta_new(conf::fp_type &delta_new) {
+void CGMixed::compute_delta_new(conf::fp_type &delta_new) {
   unsigned int workGroupCountScalarProduct_GPU = 0;
   unsigned int workGroupCountScalarProduct_CPU = 0;
 
@@ -631,7 +654,7 @@ void CG::compute_delta_new(conf::fp_type &delta_new) {
   }
 }
 
-void CG::compute_d(conf::fp_type &beta) {
+void CGMixed::compute_d(conf::fp_type &beta) {
   // d = r + βd
   if (blockCountGPU != 0) {
     VectorOperations::scaleAndAddVectorBlock(gpuQueue, r_gpu, beta, d_gpu,
@@ -644,7 +667,7 @@ void CG::compute_d(conf::fp_type &beta) {
   waitAllQueues();
 }
 
-void CG::waitAllQueues() {
+void CGMixed::waitAllQueues() {
   if (blockCountGPU != 0) {
     gpuQueue.wait();
   }
@@ -653,7 +676,7 @@ void CG::waitAllQueues() {
   }
 }
 
-void CG::rebalanceProportions(double &gpuProportion) {
+void CGMixed::rebalanceProportions(double &gpuProportion) {
   // get new GPU proportion of workload
   gpuProportion = loadBalancer->getNewProportionGPU(metricsTracker);
   std::size_t blockCountGPU_new =

@@ -1,29 +1,27 @@
-#ifndef CG_HPP
-#define CG_HPP
+#ifndef CGMIXED_HPP
+#define CGMIXED_HPP
 
-#include <string>
 #include <sycl/sycl.hpp>
 
 #include "Configuration.hpp"
 #include "LoadBalancer.hpp"
 #include "MetricsTracker.hpp"
 #include "RightHandSide.hpp"
-#include "SymmetricMatrix.hpp"
 #include "SymmetricMatrixMixed.hpp"
 
 using namespace sycl;
 
 /**
- * This class contains the heterogeneous implementation of the CG algorithm that
- * solves Ax = b.
+ * This class contains the mixed precision heterogeneous implementation of the
+ * CG algorithm that solves Ax = b.
  */
-class CG {
+class CGMixed {
 public:
-  CG(SymmetricMatrix &A, RightHandSide &b, queue &cpuQueue, queue &gpuQueue,
-     std::shared_ptr<LoadBalancer> loadBalancer);
+  CGMixed(SymmetricMatrixMixed &A, RightHandSide &b, queue &cpuQueue,
+          queue &gpuQueue, std::shared_ptr<LoadBalancer> loadBalancer);
 
-  SymmetricMatrix &A; /// SPD matrix A
-  RightHandSide &b;   /// right hand side b
+  SymmetricMatrixMixed &A; /// SPD matrix A
+  RightHandSide &b;        /// right hand side b
 
   std::vector<conf::fp_type,
               sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
@@ -42,7 +40,7 @@ public:
 
 private:
   // gpu data structures
-  conf::fp_type *A_gpu;
+  void *A_gpu;
   conf::fp_type *b_gpu;
   conf::fp_type *x_gpu;
   conf::fp_type *r_gpu;
@@ -148,4 +146,4 @@ private:
   void waitAllQueues();
 };
 
-#endif // CG_HPP
+#endif // CGMIXED_HPP
