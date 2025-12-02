@@ -51,10 +51,12 @@ set(LIBRARY_FILES
         src/utility/MatrixGenerator.hpp
         src/solver/cg/CG.cpp
         src/solver/cg/CG.hpp
+        src/solver/cg/CGMixed.cpp
+        src/solver/cg/CGMixed.hpp
         src/solver/cholesky/Cholesky.cpp
         src/solver/cholesky/Cholesky.hpp
-        # src/solver/cholesky/CholeskyMixed.cpp
-        # src/solver/cholesky/CholeskyMixed.hpp
+        src/solver/cholesky/CholeskyMixed.cpp
+        src/solver/cholesky/CholeskyMixed.hpp
         src/solver/cholesky/TriangularSystemSolver.cpp
         src/solver/cholesky/TriangularSystemSolver.hpp
         src/gaussianProcess/GaussianProcess.cpp

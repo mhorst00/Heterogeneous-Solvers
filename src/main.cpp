@@ -10,12 +10,10 @@
 // clang-format on
 
 #include "CG.hpp"
+#include "CGMixed.hpp"
 #include "LoadBalancer.hpp"
 #include "MatrixGenerator.hpp"
-#include "MatrixMatrixOperations.hpp"
-#include "MatrixOperations.hpp"
 #include "MatrixParser.hpp"
-#include "MatrixVectorOperations.hpp"
 #include "PowerLoadBalancer.hpp"
 #include "RightHandSide.hpp"
 #include "RuntimeLoadBalancer.hpp"
