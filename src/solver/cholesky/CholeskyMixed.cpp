@@ -1,10 +1,9 @@
 #include "CholeskyMixed.hpp"
 
-#include "MatrixMatrixOperations.hpp"
-#include "MatrixOperations.hpp"
+#include "MatrixMatrixOperationsMixed.hpp"
+#include "MatrixOperationsMixed.hpp"
 #include "MatrixParser.hpp"
 #include "UtilityFunctions.hpp"
-#include <cstddef>
 
 CholeskyMixed::CholeskyMixed(SymmetricMatrixMixed &A, queue &cpuQueue,
                              queue &gpuQueue,
@@ -57,11 +56,14 @@ void CholeskyMixed::initExecutionTimes() {
 }
 
 void CholeskyMixed::shiftSplit(const int blockCountATotal,
-                               const std::size_t blockSizeBytes, const int k,
-                               std::size_t blockStartIndexDiagBlock) {
+                               const std::size_t blockSizeBytes,
+                               const int blockPrecision, const int k,
+                               std::size_t blockOffsetDiagBlock) {
   executionTimes.startCopy_row = std::chrono::steady_clock::now();
 
   unsigned char *A_gpuBytes = reinterpret_cast<unsigned char *>(A_gpu);
+  unsigned char *A_matrixBytes =
+      reinterpret_cast<unsigned char *>(A.matrixData.data());
 
   double gpuProportion_new = gpuProportion;
 
@@ -79,12 +81,37 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
     if (gpuProportion_new == 1 && k < A.blockCountXY - minBlockCountGPU) {
       // if GPU proportion turns 100%, current diagonal block might now be
       // needed on the GPU if min GPU block count not yet reached
-      gpuQueue
-          .submit([&](handler &h) {
-            h.memcpy(&A_gpu[blockStartIndexDiagBlock],
-                     &A.matrixData[blockStartIndexDiagBlock], blockSizeBytes);
-          })
-          .wait();
+      if (blockPrecision == 2) {
+        sycl::half *A_gpuTyped =
+            reinterpret_cast<sycl::half *>(A_gpuBytes + blockOffsetDiagBlock);
+        sycl::half *A_matrixTyped = reinterpret_cast<sycl::half *>(
+            A_matrixBytes + blockOffsetDiagBlock);
+        gpuQueue
+            .submit([&](handler &h) {
+              h.memcpy(&A_gpuTyped, &A_matrixTyped, blockSizeBytes);
+            })
+            .wait();
+      } else if (blockPrecision == 4) {
+        float *A_gpuTyped =
+            reinterpret_cast<float *>(A_gpuBytes + blockOffsetDiagBlock);
+        float *A_matrixTyped =
+            reinterpret_cast<float *>(A_matrixBytes + blockOffsetDiagBlock);
+        gpuQueue
+            .submit([&](handler &h) {
+              h.memcpy(&A_gpuTyped, &A_matrixTyped, blockSizeBytes);
+            })
+            .wait();
+      } else if (blockPrecision == 8) {
+        double *A_gpuTyped =
+            reinterpret_cast<double *>(A_gpuBytes + blockOffsetDiagBlock);
+        double *A_matrixTyped =
+            reinterpret_cast<double *>(A_matrixBytes + blockOffsetDiagBlock);
+        gpuQueue
+            .submit([&](handler &h) {
+              h.memcpy(&A_gpuTyped, &A_matrixTyped, blockSizeBytes);
+            })
+            .wait();
+      }
     }
   }
 
@@ -187,15 +214,17 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
             blocksToCopy = additionalBlocks - (c - (blockCountCPU + k + 1) + 1);
           }
 
-          const std::size_t blockStartIndexFirstGPUBlock =
-              static_cast<std::size_t>(blockID) * conf::matrixBlockSize *
-              conf::matrixBlockSize;
+          const std::size_t A_blockOffset = A.blockByteOffsets[blockID];
+          const std::size_t A_blockSizeBytes =
+              A.blockByteOffsets[blockID + blocksToCopy] - A_blockOffset;
 
           // for current column copy additionalBlocks amount of blocks
+          sycl::half *A_gpuTyped =
+              reinterpret_cast<sycl::half *>(A_gpuBytes + A_blockOffset);
+          sycl::half *A_Typed = reinterpret_cast<sycl::half *>(
+              A.matrixData.data() + A_blockOffset);
           gpuQueue.submit([&](handler &h) {
-            h.memcpy(&A.matrixData[blockStartIndexFirstGPUBlock],
-                     &A_gpu[blockStartIndexFirstGPUBlock],
-                     blockSizeBytes * blocksToCopy);
+            h.memcpy(&A_Typed, &A_gpuTyped, A_blockSizeBytes);
           });
         }
         gpuQueue.wait();
@@ -214,35 +243,65 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
 }
 
 void CholeskyMixed::choleskyUpdateCurrentDiagonalBlock(
-    const std::size_t blockSizeBytes, const int k, const int blockID,
-    const std::size_t blockStartIndexDiagBlock) {
+    const std::size_t blockSizeBytes, const int k, const int blockPrecision,
+    const std::size_t blockOffsetDiagBlock) {
   executionTimes.startCholesky = std::chrono::steady_clock::now();
   if ((k < A.blockCountXY - std::max(blockCountGPU, minBlockCountGPU) &&
        gpuProportion != 1) ||
       gpuProportion == 0) {
     // CPU holds A_kk --> use CPU
-    MatrixOperations::cholesky(cpuQueue, A.matrixData.data(), blockID, k);
+    switch (blockPrecision) {
+    case 2:
+      MatrixOperationsMixed::cholesky(
+          cpuQueue, reinterpret_cast<sycl::half *>(A.matrixData.data()),
+          blockOffsetDiagBlock, k);
+    case 4:
+      MatrixOperationsMixed::cholesky(
+          cpuQueue, reinterpret_cast<float *>(A.matrixData.data()),
+          blockOffsetDiagBlock, k);
+    case 8:
+      MatrixOperationsMixed::cholesky(
+          cpuQueue, reinterpret_cast<double *>(A.matrixData.data()),
+          blockOffsetDiagBlock, k);
+    };
     cpuQueue.wait();
 
     if (gpuProportion != 0) {
       // copy updated current diagonal block to GPU memory
       gpuQueue
           .submit([&](handler &h) {
-            h.memcpy(&A_gpu[blockStartIndexDiagBlock],
-                     &A.matrixData[blockStartIndexDiagBlock], blockSizeBytes);
+            h.memcpy(reinterpret_cast<unsigned char *>(&A_gpu) +
+                         blockOffsetDiagBlock,
+                     reinterpret_cast<unsigned char *>(A.matrixData.data()) +
+                         blockOffsetDiagBlock,
+                     blockSizeBytes);
           })
           .wait();
     }
   } else {
     // GPU holds A_kk --> use GPU
-    MatrixOperations::cholesky_optimizedGPU(gpuQueue, A_gpu, blockID, k);
+    switch (blockPrecision) {
+    case 2:
+      MatrixOperationsMixed::cholesky_optimizedGPU(
+          gpuQueue, reinterpret_cast<sycl::half *>(A_gpu), blockOffsetDiagBlock,
+          k);
+    case 4:
+      MatrixOperationsMixed::cholesky_optimizedGPU(
+          gpuQueue, reinterpret_cast<float *>(A_gpu), blockOffsetDiagBlock, k);
+    case 8:
+      MatrixOperationsMixed::cholesky_optimizedGPU(
+          gpuQueue, reinterpret_cast<double *>(A_gpu), blockOffsetDiagBlock, k);
+    };
     gpuQueue.wait();
     if (gpuProportion != 1) {
       // copy updated current diagonal block to CPU memory
       gpuQueue
           .submit([&](handler &h) {
-            h.memcpy(&A.matrixData[blockStartIndexDiagBlock],
-                     &A_gpu[blockStartIndexDiagBlock], blockSizeBytes);
+            h.memcpy(reinterpret_cast<unsigned char *>(A.matrixData.data()) +
+                         blockOffsetDiagBlock,
+                     reinterpret_cast<unsigned char *>(&A_gpu) +
+                         blockOffsetDiagBlock,
+                     blockSizeBytes);
           })
           .wait();
     }
@@ -255,12 +314,12 @@ void CholeskyMixed::choleskySolveTriangularSystemColumn(
   executionTimes.startTriangularSolve = std::chrono::steady_clock::now();
   if (blockCountCPU > 0) {
     executionTimes.eventCPU_triangularSolve =
-        MatrixMatrixOperations::triangularSolve_optimizedCPU(
+        MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
             cpuQueue, A.matrixData.data(), blockID, k, k + 1, blockCountCPU);
   }
   if (blockCountGPU > 0) {
     executionTimes.eventGPU_triangularSolve =
-        MatrixMatrixOperations::triangularSolve_optimizedGPU(
+        MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
             gpuQueue, A_gpu, blockID, k, blockStartGPU, blockCountGPU);
   }
   waitAllQueues();
@@ -624,8 +683,6 @@ void CholeskyMixed::solve_heterogeneous() {
 
   // helper variables for various calculations
   const int blockCountATotal = (A.blockCountXY * (A.blockCountXY + 1) / 2);
-  const std::size_t blockSizeBytes =
-      conf::matrixBlockSize * conf::matrixBlockSize * sizeof(conf::fp_type);
 
   // initialize GPU memory if the GPU should be used
   executionTimes.startMemoryInitGPU = std::chrono::steady_clock::now();
@@ -652,13 +709,18 @@ void CholeskyMixed::solve_heterogeneous() {
     const int columnsToRight = A.blockCountXY - k;
     const int blockID =
         blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
-    const std::size_t blockStartIndexDiagBlock =
-        static_cast<std::size_t>(blockID) * conf::matrixBlockSize *
-        conf::matrixBlockSize;
+    // const std::size_t blockStartIndexDiagBlock =
+    //     static_cast<std::size_t>(blockID) * conf::matrixBlockSize *
+    //     conf::matrixBlockSize;
+    const std::size_t blockOffsetDiagBlock = A.blockByteOffsets[blockID];
+    const int blockPrecision = A.precisionTypes[blockID];
+    const std::size_t blockSizeBytes =
+        A.blockByteOffsets[blockID + 1] - blockOffsetDiagBlock;
 
     // check if row that splits GPU/CPU part of the matrix has to change and
     // apply the change if necessary
-    shiftSplit(blockCountATotal, blockSizeBytes, k, blockStartIndexDiagBlock);
+    shiftSplit(blockCountATotal, blockSizeBytes, blockPrecision, k,
+               blockOffsetDiagBlock);
 
     // change offset for matrix-matrix step from 0 to 1 depending on how far we
     // are into the computation
@@ -668,7 +730,7 @@ void CholeskyMixed::solve_heterogeneous() {
 
     // perform Cholesky decomposition on diagonal block A_kk
     choleskyUpdateCurrentDiagonalBlock(blockSizeBytes, k, blockID,
-                                       blockStartIndexDiagBlock);
+                                       blockOffsetDiagBlock);
 
     // solve triangular system for current column k below the diagonal
     choleskySolveTriangularSystemColumn(blockSizeBytes, k, blockID);

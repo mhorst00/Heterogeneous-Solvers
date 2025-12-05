@@ -109,8 +109,8 @@ private:
    * down depending on the new desired GPU proportion. It ensures consistency of
    * the matrix across the CPU and GPU after split is shifted.
    */
-  void shiftSplit(int blockCountATotal, std::size_t blockSizeBytes, int k,
-                  std::size_t blockStartIndexDiagBlock);
+  void shiftSplit(int blockCountATotal, std::size_t blockSizeBytes,
+                  int blockPrecision, int k, std::size_t blockOffsetDiagBlock);
 
   /**
    * Performs the first step of a column step of the Cholesky decomposition: a
@@ -122,9 +122,9 @@ private:
    * @param blockStartIndexDiagBlock start index of the diagonal block in the
    * data structure
    */
-  void choleskyUpdateCurrentDiagonalBlock(std::size_t blockSizeBytes, int k,
-                                          int blockID,
-                                          std::size_t blockStartIndexDiagBlock);
+  void choleskyUpdateCurrentDiagonalBlock(std::size_t blockSizeBytes,
+                                          int blockPrecision, int k,
+                                          std::size_t blockOffsetDiagBlock);
 
   /**
    * Performs the second step of a column step of the Cholesky decomposition:

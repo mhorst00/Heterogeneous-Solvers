@@ -248,70 +248,60 @@ int main(int argc, char *argv[]) {
   // measure CPU idle power draw in Watts
   UtilityFunctions::measureIdlePowerCPU();
 
-  // generate or parse Symmetric matrix
-  SymmetricMatrixMixed TestingMatrix = MatrixGenerator::generateSPDMatrixMixed(
-      path_gp_input, cpuQueue, gpuQueue);
+  std::optional<SymmetricMatrixMixed> A_mixed;
+  std::optional<SymmetricMatrix> A;
 
-  RightHandSide TestingSide =
-      MatrixGenerator::parseRHS_GP(path_gp_output, gpuQueue);
+  if (conf::mixed) {
+    A_mixed.emplace(MatrixGenerator::generateSPDMatrixMixed(
+        path_gp_input, cpuQueue, gpuQueue));
+  } else {
+    A.emplace(generateMatrix
+                  ? MatrixGenerator::generateSPDMatrix(path_gp_input, cpuQueue,
+                                                       gpuQueue)
+                  : MatrixParser::parseSymmetricMatrix(path_A, gpuQueue));
+  }
 
-  std::cout << "Successfully built mixed precision matrix!" << std::endl;
   RightHandSide b = generateMatrix
                         ? MatrixGenerator::parseRHS_GP(path_gp_output, gpuQueue)
                         : MatrixParser::parseRightHandSide(path_b, gpuQueue);
 
-  SymmetricMatrix A =
-      generateMatrix ? MatrixGenerator::generateSPDMatrix(path_gp_input,
-                                                          cpuQueue, gpuQueue)
-                     : MatrixParser::parseSymmetricMatrix(path_A, gpuQueue);
-
   std::shared_ptr<LoadBalancer> loadBalancer;
   if (conf::mode == "static") {
     loadBalancer = std::make_shared<StaticLoadBalancer>(
-        conf::updateInterval, conf::initialProportionGPU, A.blockCountXY);
+        conf::updateInterval, conf::initialProportionGPU,
+        (conf::mixed ? A_mixed->blockCountXY : A->blockCountXY));
   } else if (conf::mode == "runtime") {
     loadBalancer = std::make_shared<RuntimeLoadBalancer>(
-        conf::updateInterval, conf::initialProportionGPU, A.blockCountXY);
+        conf::updateInterval, conf::initialProportionGPU,
+        (conf::mixed ? A_mixed->blockCountXY : A->blockCountXY));
   } else if (conf::mode == "power") {
     loadBalancer = std::make_shared<PowerLoadBalancer>(
-        conf::updateInterval, conf::initialProportionGPU, A.blockCountXY);
+        conf::updateInterval, conf::initialProportionGPU,
+        (conf::mixed ? A_mixed->blockCountXY : A->blockCountXY));
   } else {
     throw std::runtime_error("Invalid mode selected: '" + conf::mode +
                              "' --> must be 'static', 'runtime' or 'power'");
   }
 
   std::cout << "-- starting with computation" << std::endl;
-  if (performGPR) {
-    GaussianProcess GP(A, b, path_gp_input, path_gp_test, cpuQueue, gpuQueue,
-                       loadBalancer);
+  if (performGPR && A.has_value()) {
+    GaussianProcess GP(A.value(), b, path_gp_input, path_gp_test, cpuQueue,
+                       gpuQueue, loadBalancer);
     GP.start();
   } else {
     if (conf::algorithm == "cg") {
       if (conf::mixed) {
-        CGMixed cgm(TestingMatrix, TestingSide, cpuQueue, gpuQueue,
-                    loadBalancer);
+        CGMixed cgm(A_mixed.value(), b, cpuQueue, gpuQueue, loadBalancer);
         cgm.solveHeterogeneous();
-
-        if (conf::checkResult) {
-          double error = UtilityFunctions::checkResult(
-              TestingSide, cpuQueue, gpuQueue, path_gp_input, path_gp_output);
-          std::cout << "Average error of Ax - b: " << error << std::endl;
-        }
       } else if (!conf::mixed) {
-        CG cg(A, b, cpuQueue, gpuQueue, loadBalancer);
+        CG cg(A.value(), b, cpuQueue, gpuQueue, loadBalancer);
         cg.solveHeterogeneous();
-
-        if (conf::checkResult) {
-          double error = UtilityFunctions::checkResult(
-              b, cpuQueue, gpuQueue, path_gp_input, path_gp_output);
-          std::cout << "Average error of Ax - b: " << error << std::endl;
-        }
       }
     } else if (conf::algorithm == "cholesky") {
-      Cholesky cholesky(A, cpuQueue, gpuQueue, loadBalancer);
+      Cholesky cholesky(A.value(), cpuQueue, gpuQueue, loadBalancer);
       cholesky.solve_heterogeneous();
-      TriangularSystemSolver solver(A, cholesky.A_gpu, b, cpuQueue, gpuQueue,
-                                    loadBalancer);
+      TriangularSystemSolver solver(A.value(), cholesky.A_gpu, b, cpuQueue,
+                                    gpuQueue, loadBalancer);
       double solveTime = solver.solve();
       if (conf::trackCholeskySolveStep) {
         if (conf::printVerbose && conf::enableHWS) {
