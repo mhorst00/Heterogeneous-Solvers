@@ -197,6 +197,13 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
   // Build and allocate matrix memory
   SymmetricMatrixMixed matrix(conf::N, conf::matrixBlockSize, queueGPU);
 
+  int fp16_blocks = 0;
+  int fp32_blocks = 0;
+  int fp64_blocks = 0;
+
+  const int boundary0 = std::ceil(matrix.blockCountXY / 2);
+  const int boundary1 = std::ceil(matrix.blockCountXY / 4);
+
   // Build testing mixed precision vector
   std::vector<Precision> precisionVector{};
   precisionVector.resize(matrix.blockCountXY * (matrix.blockCountXY + 1) / 2);
@@ -205,16 +212,22 @@ MatrixGenerator::generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
   for (int col = 0; col < matrix.blockCountXY; ++col) {
     for (int row = col; row < matrix.blockCountXY; ++row) {
       distance = std::abs(row - col);
-      if (distance < 20) {
+      if (distance < boundary0) {
         precisionVector[continuous_index] = Precision::FP64;
-      } else if (distance < 50) {
+        fp64_blocks++;
+      } else if (distance < boundary1) {
         precisionVector[continuous_index] = Precision::FP32;
+        fp32_blocks++;
       } else {
         precisionVector[continuous_index] = Precision::FP16;
+        fp32_blocks++;
       }
       continuous_index++;
     }
   }
+
+  std::cout << "FP64, FP32, FP16 blocks: (" << fp64_blocks << "," << fp32_blocks
+            << "," << fp16_blocks << ")" << std::endl;
 
   // Prepare memory pointers for precision index data
   std::size_t *blockByteOffsets = matrix.blockByteOffsets.data();
