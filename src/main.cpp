@@ -11,6 +11,7 @@
 
 #include "CG.hpp"
 #include "CGMixed.hpp"
+#include "CholeskyMixed.hpp"
 #include "LoadBalancer.hpp"
 #include "MatrixGenerator.hpp"
 #include "MatrixParser.hpp"
@@ -298,19 +299,26 @@ int main(int argc, char *argv[]) {
         cg.solveHeterogeneous();
       }
     } else if (conf::algorithm == "cholesky") {
-      Cholesky cholesky(A.value(), cpuQueue, gpuQueue, loadBalancer);
-      cholesky.solve_heterogeneous();
-      TriangularSystemSolver solver(A.value(), cholesky.A_gpu, b, cpuQueue,
-                                    gpuQueue, loadBalancer);
-      double solveTime = solver.solve();
-      if (conf::trackCholeskySolveStep) {
-        if (conf::printVerbose && conf::enableHWS) {
-          std::cout << "Ending tracking after solve step" << std::endl;
+      if (conf::mixed) {
+        CholeskyMixed cholesky(A_mixed.value(), cpuQueue, gpuQueue,
+                               loadBalancer);
+        cholesky.solve_heterogeneous();
+
+      } else if (!conf::mixed) {
+        Cholesky cholesky(A.value(), cpuQueue, gpuQueue, loadBalancer);
+        cholesky.solve_heterogeneous();
+        TriangularSystemSolver solver(A.value(), cholesky.A_gpu, b, cpuQueue,
+                                      gpuQueue, loadBalancer);
+        double solveTime = solver.solve();
+        if (conf::trackCholeskySolveStep) {
+          if (conf::printVerbose && conf::enableHWS) {
+            std::cout << "Ending tracking after solve step" << std::endl;
+          }
+          cholesky.metricsTracker.endTracking();
         }
-        cholesky.metricsTracker.endTracking();
+        cholesky.metricsTracker.solveTime = solveTime;
+        cholesky.writeMetricsToFile();
       }
-      cholesky.metricsTracker.solveTime = solveTime;
-      cholesky.writeMetricsToFile();
 
       if (conf::checkResult) {
         double error = UtilityFunctions::checkResult(

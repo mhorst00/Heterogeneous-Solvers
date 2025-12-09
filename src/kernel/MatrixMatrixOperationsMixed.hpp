@@ -3,8 +3,6 @@
 
 #include <sycl/sycl.hpp>
 
-#include "Configuration.hpp"
-
 class MatrixMatrixOperationsMixed {
 public:
   /**
@@ -28,9 +26,9 @@ public:
    * system will be solved
    * @return a sycl event of the kernel execution
    */
-  static sycl::event triangularSolve(sycl::queue &queue, void *A, int blockID,
+  static sycl::event triangularSolve(sycl::queue &queue, void *A,
                                      int *precisionTypes,
-                                     std::size_t *blockByteOffsets,
+                                     std::size_t *blockByteOffsets, int blockID,
                                      int blockRow, int blockStart,
                                      int blockCount);
 
@@ -57,12 +55,10 @@ public:
    * system will be solved
    * @return a sycl event of the kernel execution
    */
-  static sycl::event triangularSolve_optimizedGPU(sycl::queue &queue, void *A,
-                                                  int blockID,
-                                                  int *precisionTypes,
-                                                  std::size_t *blockByteOffsets,
-                                                  int blockRow, int blockStart,
-                                                  int blockCount);
+  static sycl::event
+  triangularSolve_optimizedGPU(sycl::queue &queue, void *A, int *precisionTypes,
+                               std::size_t *blockByteOffsets, int blockID,
+                               int blockRow, int blockStart, int blockCount);
 
   /**
    * This function solves a triangular System LB^T=B^T for a (sub) column of the
