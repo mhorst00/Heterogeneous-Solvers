@@ -211,3 +211,20 @@ sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(
 
   return event;
 }
+// Explicit instantiations - Add types here as required
+template sycl::event MatrixOperationsMixed::cholesky<sycl::half>(sycl::queue &,
+                                                                 sycl::half *,
+                                                                 size_t, int);
+template sycl::event
+MatrixOperationsMixed::cholesky<float>(sycl::queue &, float *, size_t, int);
+template sycl::event
+MatrixOperationsMixed::cholesky<double>(sycl::queue &, double *, size_t, int);
+
+template sycl::event MatrixOperationsMixed::cholesky_optimizedGPU<sycl::half>(
+    sycl::queue &, sycl::half *, size_t, int);
+template sycl::event
+MatrixOperationsMixed::cholesky_optimizedGPU<float>(sycl::queue &, float *,
+                                                    size_t, int);
+template sycl::event
+MatrixOperationsMixed::cholesky_optimizedGPU<double>(sycl::queue &, double *,
+                                                     size_t, int);

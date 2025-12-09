@@ -134,8 +134,7 @@ private:
    * @param k column k
    * @param blockID id of the diagonal block
    */
-  void choleskySolveTriangularSystemColumn(std::size_t blockSizeBytes, int k,
-                                           int blockID);
+  void choleskySolveTriangularSystemColumn(int k, int blockID);
 
   /**
    * Performs the third step of a column step of the Cholesky decomposition:
@@ -172,7 +171,7 @@ private:
    * @param blockCountATotal Total amount of blocks stored for the matrix A
    * @param blockSizeBytes size of one block in bytes
    */
-  void copyResultFromGPU(int blockCountATotal, std::size_t blockSizeBytes);
+  void copyResultFromGPU(int blockCountATotal);
 
   /**
    * Prints the final runtimes of the complete decomposition

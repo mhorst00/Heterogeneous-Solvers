@@ -38,8 +38,8 @@ set(LIBRARY_FILES
         src/solver/cg/CGMixed.hpp
         src/solver/cholesky/Cholesky.cpp
         src/solver/cholesky/Cholesky.hpp
-        # src/solver/cholesky/CholeskyMixed.cpp
-        # src/solver/cholesky/CholeskyMixed.hpp
+        src/solver/cholesky/CholeskyMixed.cpp
+        src/solver/cholesky/CholeskyMixed.hpp
         src/solver/cholesky/TriangularSystemSolver.cpp
         src/solver/cholesky/TriangularSystemSolver.hpp
         src/gaussianProcess/GaussianProcess.cpp
@@ -58,8 +58,12 @@ set(LIBRARY_FILES
         src/kernel/MatrixVectorOperationsMixed.hpp
         src/kernel/MatrixOperations.cpp
         src/kernel/MatrixOperations.hpp
+        src/kernel/MatrixOperationsMixed.cpp
+        src/kernel/MatrixOperationsMixed.hpp
         src/kernel/MatrixMatrixOperations.cpp
         src/kernel/MatrixMatrixOperations.hpp
+        src/kernel/MatrixMatrixOperationsMixed.cpp
+        src/kernel/MatrixMatrixOperationsMixed.hpp
         src/metricsTracker/MetricsTracker.cpp
         src/metricsTracker/MetricsTracker.hpp
         src/loadBalancer/LoadBalancer.cpp
