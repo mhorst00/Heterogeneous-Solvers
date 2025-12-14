@@ -59,6 +59,8 @@ set(LIBRARY_FILES
         src/solver/cholesky/CholeskyMixed.hpp
         src/solver/cholesky/TriangularSystemSolver.cpp
         src/solver/cholesky/TriangularSystemSolver.hpp
+        src/solver/cholesky/TriangularSystemSolverMixed.cpp
+        src/solver/cholesky/TriangularSystemSolverMixed.hpp
         src/gaussianProcess/GaussianProcess.cpp
         src/gaussianProcess/GaussianProcess.hpp
         src/dataStructures/SymmetricMatrix.cpp
