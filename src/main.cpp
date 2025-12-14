@@ -21,6 +21,7 @@
 #include "StaticLoadBalancer.hpp"
 #include "SymmetricMatrix.hpp"
 #include "SymmetricMatrixMixed.hpp"
+#include "TriangularSystemSolverMixed.hpp"
 #include "UtilityFunctions.hpp"
 #include "cholesky/Cholesky.hpp"
 #include "cholesky/TriangularSystemSolver.hpp"
@@ -303,6 +304,18 @@ int main(int argc, char *argv[]) {
         CholeskyMixed cholesky(A_mixed.value(), cpuQueue, gpuQueue,
                                loadBalancer);
         cholesky.solve_heterogeneous();
+        TriangularSystemSolverMixed solver(A_mixed.value(), cholesky.A_gpu, b,
+                                           cpuQueue, gpuQueue, loadBalancer);
+        double solveTime = solver.solve();
+
+        if (conf::trackCholeskySolveStep) {
+          if (conf::printVerbose && conf::enableHWS) {
+            std::cout << "Ending tracking after solve step" << std::endl;
+          }
+          cholesky.metricsTracker.endTracking();
+        }
+        cholesky.metricsTracker.solveTime = solveTime;
+        cholesky.writeMetricsToFile();
 
       } else if (!conf::mixed) {
         Cholesky cholesky(A.value(), cpuQueue, gpuQueue, loadBalancer);
