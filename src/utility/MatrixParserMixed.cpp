@@ -31,6 +31,41 @@ MatrixParserMixed::parseSymmetricMatrix(std::string &path, sycl::queue &queue) {
   conf::N = N;
   // create symmetric matrix
   SymmetricMatrixMixed matrix(N, conf::matrixBlockSize, queue);
+  // Allocate more memory than necessary to ensure data fits
+  matrix.allocate(N * N * conf::matrixBlockSize * conf::matrixBlockSize *
+                  sizeof(conf::fp_type));
+  const int boundary0 = std::ceil(matrix.blockCountXY) * 2;
+  const int boundary1 = std::ceil(matrix.blockCountXY * 0.8);
+
+  // Calculate mixed precision block memory byte offsets
+  std::size_t continuous_index = 0;
+  int distance = 0;
+  std::size_t cumulative_offset = 0;
+  int elementByteSize = 0;
+
+  for (int col = 0; col < matrix.blockCountXY; ++col) {
+    for (int r = col; r < matrix.blockCountXY; ++r) {
+      matrix.blockByteOffsets[continuous_index] = cumulative_offset;
+      elementByteSize = 0;
+      distance = abs(r - col);
+      if (distance < boundary0) {
+        elementByteSize = sizeof(double);
+        matrix.precisionTypes[continuous_index] =
+            static_cast<int>(elementByteSize);
+      } else if (distance < boundary1) {
+        elementByteSize = sizeof(float);
+        matrix.precisionTypes[continuous_index] =
+            static_cast<int>(elementByteSize);
+      } else {
+        elementByteSize = sizeof(sycl::half);
+        matrix.precisionTypes[continuous_index] =
+            static_cast<int>(elementByteSize);
+      }
+      cumulative_offset +=
+          elementByteSize * conf::matrixBlockSize * conf::matrixBlockSize;
+      continuous_index++;
+    }
+  }
 
   // read file row by row
   unsigned int rowIndex = 0;

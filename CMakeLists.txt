@@ -164,6 +164,7 @@ target_include_directories(heterogeneous_solvers PUBLIC ${cxxopts_SOURCE_DIR}/in
 if (${ENABLE_TESTS})
     set(TEST_SOURCE_FILES
             tests/testSymmetricMatrix.cpp
+            tests/testSymmetricMatrixMixed.cpp
             tests/testMatrixVectorBlock.cpp
             tests/testVectorOperations.cpp
             tests/testMatrixOperations.cpp

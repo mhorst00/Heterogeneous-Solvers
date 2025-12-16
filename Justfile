@@ -17,6 +17,9 @@ build: _acpp_setup
 run *FLAGS:
   ./build/heterogeneous_solvers {{FLAGS}}
 
+test *FLAGS:
+  cd build && ./heterogeneous_solvers_test
+
 _acpp_setup:
   #! /usr/bin/env bash
   # Prematurely exit setup if installation can be found
