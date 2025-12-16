@@ -1,7 +1,8 @@
 ACPP_PREFIX := "/opt/acpp"
 ACPP_VERSION := "v25.10.0"
 GPU_VENDOR := "AMD"
-FP64 := "true"
+FP64 := "ON"
+TESTS := "ON"
 
 default:
   @just --list
@@ -10,7 +11,7 @@ build: _acpp_setup
   #! /usr/bin/env bash
   mkdir -p build
   cd build
-  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER={{ACPP_PREFIX}}/bin/acpp -DCMAKE_CXX_FLAGS="-march=native" -DCMAKE_PREFIX_PATH="{{ACPP_PREFIX}}" -DGPU_VENDOR={{GPU_VENDOR}} {{ if FP64 == "true" {"-DUSE_DOUBLE=ON"} else {"-DUSE_DOUBLE=OFF"} }} ..
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER={{ACPP_PREFIX}}/bin/acpp -DCMAKE_CXX_FLAGS="-march=native" -DCMAKE_PREFIX_PATH="{{ACPP_PREFIX}}" -DGPU_VENDOR={{GPU_VENDOR}} -DUSE_DOUBLE={{FP64}} -DENABLE_TESTS={{TESTS}} ..
   make -j $(nproc --all)
 
 run *FLAGS:
