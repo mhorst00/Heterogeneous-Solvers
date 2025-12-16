@@ -111,4 +111,4 @@ build/heterogeneous_solvers
 matrixGenerator/datasets/
 output/
 test_*.txt
-
+*_result
