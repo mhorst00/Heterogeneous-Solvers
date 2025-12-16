@@ -6,12 +6,6 @@
 
 #include "Configuration.hpp"
 
-enum Precision {
-  FP16 = sizeof(sycl::half),
-  FP32 = sizeof(float),
-  FP64 = sizeof(double)
-};
-
 /**
  * Class that represents a mixed precision symmetric matrix that is stored in a
  * blocked manner. Symmetric values in diagonal blocks are stored redundantly.
@@ -69,9 +63,11 @@ public:
       blockByteOffsets;
 
   /// internal matrix data structure allocated as SYCL host memory
-  std::vector<conf::fp_type,
-              sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
+  std::vector<unsigned char,
+              sycl::usm_allocator<unsigned char, sycl::usm::alloc::host>>
       matrixData;
+
+  void allocate(size_t total_bytes);
 };
 
 #endif // SYMMETRICMATRIXMIXED_HPP

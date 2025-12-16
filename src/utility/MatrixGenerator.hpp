@@ -5,7 +5,6 @@
 
 #include "RightHandSide.hpp"
 #include "SymmetricMatrix.hpp"
-#include "SymmetricMatrixMixed.hpp"
 
 /**
  * Class that contains various methods for generating symmetric
@@ -35,19 +34,6 @@ public:
   static SymmetricMatrix generateSPDMatrix(std::string &path,
                                            sycl::queue &queue,
                                            sycl::queue &queueGPU);
-
-  /**
-   * This operation generates a mixed precision SPD kernel matrix that can be
-   * used for Gaussian Processes
-   *
-   * @param path path to text file with data
-   * @param queue CPU queue
-   * @param queueGPU GPU queue
-   * @return a SPD matrix
-   */
-  static SymmetricMatrixMixed generateSPDMatrixMixed(std::string &path,
-                                                     sycl::queue &queue,
-                                                     sycl::queue &queueGPU);
 
   /**
    * This operation generates the test kernel matrix K* used required for

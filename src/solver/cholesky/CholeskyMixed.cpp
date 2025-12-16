@@ -3,7 +3,7 @@
 #include "Configuration.hpp"
 #include "MatrixMatrixOperationsMixed.hpp"
 #include "MatrixOperationsMixed.hpp"
-#include "MatrixParser.hpp"
+#include "MatrixParserMixed.hpp"
 #include "UtilityFunctions.hpp"
 
 CholeskyMixed::CholeskyMixed(SymmetricMatrixMixed &A, queue &cpuQueue,
@@ -25,9 +25,9 @@ void CholeskyMixed::initGPUMemory() {
       A.blockByteOffsets[A.blockByteOffsets.size() - 1] +
       A.precisionTypes[A.precisionTypes.size() - 1] * A.blockSize * A.blockSize;
   std::cout << "GPU malloc size: " << bytesGPU << std::endl;
-  if (bytesGPU != A.matrixData.size() * sizeof(conf::fp_type)) {
+  if (bytesGPU != A.matrixData.size() * sizeof(unsigned char)) {
     std::cout << "GPU != CPU matrix bytes, CPU size: "
-              << A.matrixData.size() * sizeof(conf::fp_type) << "\n";
+              << A.matrixData.size() * sizeof(unsigned char) << "\n";
   }
   A_gpu = malloc_device(bytesGPU, gpuQueue);
   // Copy the matrix A to the GPU
@@ -609,6 +609,13 @@ void CholeskyMixed::copyResultFromGPU(const int blockCountATotal) {
               // manually calculate last block size to prevent overflow
               : A.blockSize * A.blockSize * A.precisionTypes[blockID];
 
+      if (!(static_cast<std::size_t>(blockID) < A.blockByteOffsets.size() - 1))
+        std::cout << "Weird byte calc did thing!\n";
+
+      std::cout << "copying blockid: " << blockID << " for "
+                << blockCountGPUinColumn << " blocks starting at offset "
+                << blockStartOffset << " for a total of " << blockByteCount
+                << " bytes\n";
       gpuQueue.submit([&](handler &h) {
         h.memcpy(reinterpret_cast<unsigned char *>(A.matrixData.data()) +
                      blockStartOffset,
@@ -739,10 +746,9 @@ void CholeskyMixed::solve_heterogeneous() {
   }
   printFinalTimes();
 
-  // TODO: Rewrite MatrixParser to handle mixed precision
-  // if (conf::writeMatrix) {
-  //   MatrixParser::writeFullMatrix("./A_chol_result", A);
-  // }
+  if (conf::writeMatrix) {
+    MatrixParserMixed::writeFullMatrix("./A_mixed_chol_result", A);
+  }
 }
 
 void CholeskyMixed::waitAllQueues() {
