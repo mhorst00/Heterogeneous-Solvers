@@ -45,10 +45,14 @@ set(LIBRARY_FILES
         src/utility/Configuration.hpp
         src/utility/MatrixParser.cpp
         src/utility/MatrixParser.hpp
+        src/utility/MatrixParserMixed.cpp
+        src/utility/MatrixParserMixed.hpp
         src/utility/UtilityFunctions.cpp
         src/utility/UtilityFunctions.hpp
         src/utility/MatrixGenerator.cpp
         src/utility/MatrixGenerator.hpp
+        src/utility/MatrixGeneratorMixed.cpp
+        src/utility/MatrixGeneratorMixed.hpp
         src/solver/cg/CG.cpp
         src/solver/cg/CG.hpp
         src/solver/cg/CGMixed.cpp

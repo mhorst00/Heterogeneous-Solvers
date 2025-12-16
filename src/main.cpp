@@ -1,6 +1,4 @@
 // clang-format off
-#include <iostream>
-#include <ostream>
 #include <sycl/sycl.hpp>
 #include <hws/system_hardware_sampler.hpp>
 #include <hws/cpu/hardware_sampler.hpp>
@@ -14,7 +12,9 @@
 #include "CholeskyMixed.hpp"
 #include "LoadBalancer.hpp"
 #include "MatrixGenerator.hpp"
+#include "MatrixGeneratorMixed.hpp"
 #include "MatrixParser.hpp"
+#include "MatrixParserMixed.hpp"
 #include "PowerLoadBalancer.hpp"
 #include "RightHandSide.hpp"
 #include "RuntimeLoadBalancer.hpp"
@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
   std::optional<SymmetricMatrix> A;
 
   if (conf::mixed) {
-    A_mixed.emplace(MatrixGenerator::generateSPDMatrixMixed(
+    A_mixed.emplace(MatrixGeneratorMixed::generateSPDMatrixMixed(
         path_gp_input, cpuQueue, gpuQueue));
   } else {
     A.emplace(generateMatrix
@@ -301,6 +301,7 @@ int main(int argc, char *argv[]) {
       }
     } else if (conf::algorithm == "cholesky") {
       if (conf::mixed) {
+        MatrixParserMixed::writeFullMatrix("./test_pre.txt", A_mixed.value());
         CholeskyMixed cholesky(A_mixed.value(), cpuQueue, gpuQueue,
                                loadBalancer);
         cholesky.solve_heterogeneous();
