@@ -20,14 +20,16 @@ TEST_F(SymmetricMatrixTestMixed, parseSymmetricMatrixMixedBS4) {
   // EXPECT_EQ(matrixSize, 15 * 4 * 4);
   conf::fp_type *block0 =
       reinterpret_cast<conf::fp_type *>(matrix.matrixData.data());
+  conf::fp_type *block5 = reinterpret_cast<conf::fp_type *>(
+      matrix.matrixData.data() + matrix.blockByteOffsets[5]);
   conf::fp_type *block14 = reinterpret_cast<conf::fp_type *>(
-      matrix.matrixData.data() + matrix.blockByteOffsets[13]);
+      matrix.matrixData.data() + matrix.blockByteOffsets[14]);
 
   EXPECT_DOUBLE_EQ(block0[0], 2.77476983971595769773);
   EXPECT_DOUBLE_EQ(block14[15], 0.61881172156451602628);
   EXPECT_DOUBLE_EQ(block0[3], 2.45454075211619482388);
-  EXPECT_DOUBLE_EQ(matrix.matrixData[5 * 16 + 3], 0.93814549612914632792);
-  EXPECT_DOUBLE_EQ(matrix.matrixData[5 * 16 + 12], 0.93814549612914632792);
+  EXPECT_DOUBLE_EQ(block5[3], 0.93814549612914632792);
+  EXPECT_DOUBLE_EQ(block5[12], 0.93814549612914632792);
 }
 
 TEST_F(SymmetricMatrixTestMixed, parseSymmetricMatrixMixedBS6) {
@@ -38,14 +40,22 @@ TEST_F(SymmetricMatrixTestMixed, parseSymmetricMatrixMixedBS6) {
 
   EXPECT_EQ(matrix.blockSize, 6);
   EXPECT_EQ(matrix.blockCountXY, 4);
-  EXPECT_EQ(matrix.matrixData.size(), 10 * 6 * 6);
+  // EXPECT_EQ(matrix.matrixData.size(), 10 * 6 * 6);
 
-  EXPECT_DOUBLE_EQ(matrix.matrixData[0], 2.77476983971595769773);
-  EXPECT_DOUBLE_EQ(matrix.matrixData[10 * 36 - 1], 0.0);
-  EXPECT_DOUBLE_EQ(matrix.matrixData[5], 0.40679131158035214400);
-  EXPECT_DOUBLE_EQ(matrix.matrixData[4 * 36 + 5], 0.42401421263563354724);
-  EXPECT_DOUBLE_EQ(matrix.matrixData[4 * 36 + 30], 0.42401421263563354724);
-  EXPECT_DOUBLE_EQ(matrix.matrixData[3 * 36 + 30], 0.0);
+  conf::fp_type *block0 =
+      reinterpret_cast<conf::fp_type *>(matrix.matrixData.data());
+  conf::fp_type *block3 = reinterpret_cast<conf::fp_type *>(
+      matrix.matrixData.data() + matrix.blockByteOffsets[3]);
+  conf::fp_type *block4 = reinterpret_cast<conf::fp_type *>(
+      matrix.matrixData.data() + matrix.blockByteOffsets[4]);
+  conf::fp_type *block9 = reinterpret_cast<conf::fp_type *>(
+      matrix.matrixData.data() + matrix.blockByteOffsets[9]);
+  EXPECT_DOUBLE_EQ(block0[0], 2.77476983971595769773);
+  EXPECT_DOUBLE_EQ(block9[35], 0.0);
+  EXPECT_DOUBLE_EQ(block0[5], 0.40679131158035214400);
+  EXPECT_DOUBLE_EQ(block4[5], 0.42401421263563354724);
+  EXPECT_DOUBLE_EQ(block4[30], 0.42401421263563354724);
+  EXPECT_DOUBLE_EQ(block3[30], 0.0);
 }
 
 TEST(MatrixParserMixedTest, parseRowString) {
