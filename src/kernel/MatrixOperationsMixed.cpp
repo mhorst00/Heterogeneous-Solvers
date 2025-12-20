@@ -220,6 +220,15 @@ MatrixOperationsMixed::cholesky<float>(sycl::queue &, float *, size_t, int);
 template sycl::event
 MatrixOperationsMixed::cholesky<double>(sycl::queue &, double *, size_t, int);
 
+template sycl::event
+MatrixOperationsMixed::cholesky_GPU<sycl::half>(sycl::queue &, sycl::half *,
+                                                size_t, int);
+template sycl::event
+MatrixOperationsMixed::cholesky_GPU<float>(sycl::queue &, float *, size_t, int);
+template sycl::event MatrixOperationsMixed::cholesky_GPU<double>(sycl::queue &,
+                                                                 double *,
+                                                                 size_t, int);
+
 template sycl::event MatrixOperationsMixed::cholesky_optimizedGPU<sycl::half>(
     sycl::queue &, sycl::half *, size_t, int);
 template sycl::event
