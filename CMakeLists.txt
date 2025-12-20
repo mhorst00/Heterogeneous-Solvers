@@ -140,6 +140,7 @@ if (${ENABLE_TESTS})
             tests/testSymmetricMatrixMixed.cpp
             tests/testMatrixVectorBlock.cpp
             tests/testVectorOperations.cpp
+            tests/testMatrixOperationsMixed.cpp
             tests/testMatrixOperations.cpp
             tests/testMatrixMatrixOperations.cpp)
 
