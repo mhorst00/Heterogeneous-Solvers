@@ -34,7 +34,7 @@ MatrixParserMixed::parseSymmetricMatrix(std::string &path, sycl::queue &queue) {
   // Allocate more memory than necessary to ensure data fits
   matrix.allocate(N * N * conf::matrixBlockSize * conf::matrixBlockSize *
                   sizeof(conf::fp_type));
-  const int boundary0 = std::ceil(matrix.blockCountXY) * 2;
+  const int boundary0 = std::ceil(matrix.blockCountXY) * 0.5;
   const int boundary1 = std::ceil(matrix.blockCountXY * 0.8);
 
   // Calculate mixed precision block memory byte offsets

@@ -216,7 +216,7 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
               read_element(ABytes, blockStartOffset_B,
                            group_id_j * matrixBlockSize + j, blockPrec_B) -
               read_element(ABytes, blockStartOffset_L, j * matrixBlockSize + k,
-                           blockStartOffset_L) *
+                           blockPrec_L) *
                   b_k;
           write_element(ABytes, blockStartOffset_B,
                         group_id_j * matrixBlockSize + j, val, blockPrec_B);
@@ -300,7 +300,7 @@ sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
           conf::fp_type val =
               read_element(ABytes, block_wg_diag_offset,
                            i * matrixBlockSize + j, block_wg_diag_prec) -
-              read_element(ABytes, blockID_wg_col, i * matrixBlockSize + k,
+              read_element(ABytes, block_wg_col_offset, i * matrixBlockSize + k,
                            block_wg_col_prec) *
                   read_element(ABytes, block_wg_col_offset,
                                j * matrixBlockSize + k, block_wg_col_prec);
