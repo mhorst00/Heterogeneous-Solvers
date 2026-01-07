@@ -59,7 +59,7 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve(
       const std::size_t block_id_B =
           blockID + (blockStart - blockRow) + group_id_i;
       const std::size_t blockStartOffset_B = blockByteOffsets[block_id_B];
-      const int blockPrec_B = precisionTypes[blockID];
+      const int blockPrec_B = precisionTypes[block_id_B];
 
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
         // b_k = b_k/a_kk

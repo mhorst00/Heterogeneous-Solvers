@@ -27,8 +27,11 @@ sycl::event MatrixOperationsMixed::cholesky(sycl::queue &queue, T *A,
       int local_i = nd_item.get_local_id(0);
 
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-        const conf::fp_type sqrtDiag =
-            sycl::sqrt(ATyped[k * matrixBlockSize + k]);
+        T diagVal = ATyped[k * matrixBlockSize + k];
+        if (diagVal <= T{0}) {
+          diagVal = T{1e-10};
+        }
+        const T sqrtDiag = sycl::sqrt(diagVal);
         // a_kk = sqrt(a_kk)
 
         if ((blockRow * matrixBlockSize + local_i) < N) {
@@ -49,8 +52,8 @@ sycl::event MatrixOperationsMixed::cholesky(sycl::queue &queue, T *A,
           // process lower triangle right to the updated column
           for (int j = k + 1; j < static_cast<int>(matrixBlockSize); ++j) {
             if (local_i >= j) {
-              const conf::fp_type A_ik = ATyped[local_i * matrixBlockSize + k];
-              const conf::fp_type A_jk = ATyped[j * matrixBlockSize + k];
+              const T A_ik = ATyped[local_i * matrixBlockSize + k];
+              const T A_jk = ATyped[j * matrixBlockSize + k];
               ATyped[local_i * matrixBlockSize + j] =
                   ATyped[local_i * matrixBlockSize + j] - A_ik * A_jk;
             } else {
@@ -85,17 +88,19 @@ sycl::event MatrixOperationsMixed::cholesky_GPU(sycl::queue &queue, T *A,
   const std::size_t N = conf::N;
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
-    auto local_column =
-        local_accessor<conf::fp_type, 1>(conf::matrixBlockSize, h);
+    auto local_column = local_accessor<T, 1>(conf::matrixBlockSize, h);
 
     h.parallel_for(kernelRange, [=](auto &nd_item) {
       const int local_i = nd_item.get_local_id(0);
 
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-        const conf::fp_type sqrtDiag =
-            sycl::sqrt(ATyped[k * matrixBlockSize + k]);
+        T diagVal = ATyped[k * matrixBlockSize + k];
+        if (diagVal <= T{0}) {
+          diagVal = T{1e-10};
+        }
+        const T sqrtDiag = sycl::sqrt(diagVal);
 
-        conf::fp_type A_ik = 0.0;
+        T A_ik = 0.0;
 
         if ((blockRow * matrixBlockSize + local_i) < N) {
           // update column below diagonal value
@@ -118,7 +123,7 @@ sycl::event MatrixOperationsMixed::cholesky_GPU(sycl::queue &queue, T *A,
           // process lower triangle right to the updated column
           for (int j = k + 1; j < static_cast<int>(matrixBlockSize); ++j) {
             if (local_i >= j) {
-              const conf::fp_type A_jk = local_column[j];
+              const T A_jk = local_column[j];
               ATyped[local_i * matrixBlockSize + j] =
                   ATyped[local_i * matrixBlockSize + j] - A_ik * A_jk;
             } else {
@@ -152,21 +157,23 @@ sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(
   const std::size_t N = conf::N;
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
-    auto local_column =
-        local_accessor<conf::fp_type, 1>(conf::matrixBlockSize, h);
+    auto local_column = local_accessor<T, 1>(conf::matrixBlockSize, h);
 
     h.parallel_for(kernelRange, [=](auto &nd_item) {
       const int group_id = nd_item.get_group().get_group_id();
       const int local_i = nd_item.get_local_id(0);
       if (group_id == 0) {
         for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-          conf::fp_type A_ik = 0.0;
+          T A_ik = 0.0;
 
           if ((blockRow * matrixBlockSize + local_i) < N) {
             // update column below diagonal value
             if (local_i > k) {
-              const conf::fp_type sqrtDiag =
-                  sycl::sqrt(ATyped[k * matrixBlockSize + k]);
+              T diagVal = ATyped[k * matrixBlockSize + k];
+              if (diagVal <= T{0}) {
+                diagVal = T{1e-10};
+              }
+              const T sqrtDiag = sycl::sqrt(diagVal);
               A_ik = ATyped[local_i * matrixBlockSize + k] / sqrtDiag;
               ATyped[local_i * matrixBlockSize + k] = A_ik;
               local_column[local_i] =
@@ -180,7 +187,7 @@ sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(
             // process lower triangle right to the updated column
             for (int j = k + 1; j < static_cast<int>(matrixBlockSize); ++j) {
               if (local_i >= j) {
-                const conf::fp_type A_jk = local_column[j];
+                const T A_jk = local_column[j];
                 ATyped[local_i * matrixBlockSize + j] =
                     ATyped[local_i * matrixBlockSize + j] - A_ik * A_jk;
               }
@@ -189,8 +196,11 @@ sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(
 
           // a_kk = sqrt(a_kk)
           if (local_i == 0) {
-            const conf::fp_type sqrtDiag =
-                sycl::sqrt(ATyped[k * matrixBlockSize + k]);
+            T diagVal = ATyped[k * matrixBlockSize + k];
+            if (diagVal <= T{0}) {
+              diagVal = T{1e-10};
+            }
+            const T sqrtDiag = sycl::sqrt(diagVal);
             ATyped[k * matrixBlockSize + k] = sqrtDiag;
           }
 
