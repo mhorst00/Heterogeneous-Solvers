@@ -61,6 +61,9 @@ public:
   std::vector<std::size_t,
               sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>>
       blockByteOffsets;
+  // Matrix block ranks
+  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>>
+      blockRanks;
 
   /// internal matrix data structure allocated as SYCL host memory
   std::vector<unsigned char,
