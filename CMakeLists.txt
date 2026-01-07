@@ -53,6 +53,8 @@ set(LIBRARY_FILES
         src/utility/MatrixGenerator.hpp
         src/utility/MatrixGeneratorMixed.cpp
         src/utility/MatrixGeneratorMixed.hpp
+        src/utility/RankFinder.hpp
+        src/utility/RankFinder.cpp
         src/solver/cg/CG.cpp
         src/solver/cg/CG.hpp
         src/solver/cg/CGMixed.cpp

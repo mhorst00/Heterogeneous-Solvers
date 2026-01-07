@@ -1,5 +1,6 @@
 #include "MatrixGeneratorMixed.hpp"
 #include "Configuration.hpp"
+#include "RankFinder.hpp"
 #include "SymmetricMatrixMixed.hpp"
 
 using namespace sycl;
@@ -11,74 +12,13 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
 
   // Build and allocate matrix memory
   SymmetricMatrixMixed matrix(conf::N, conf::matrixBlockSize, queueGPU);
-  const std::size_t matrixBlockCount =
-      matrix.blockCountXY * (matrix.blockCountXY + 1) / 2;
-
-  int fp16_blocks = 0;
-  int fp32_blocks = 0;
-  int fp64_blocks = 0;
-
-  const int boundary0 = std::ceil(matrix.blockCountXY) * 2;
-  const int boundary1 = std::ceil(matrix.blockCountXY * 0.8);
-
-  // Calculate mixed precision block memory byte offsets
-  std::size_t continuous_index = 0;
-  int distance = 0;
-  std::size_t cumulative_offset = 0;
-  int elementByteSize = 0;
-
-  for (int col = 0; col < matrix.blockCountXY; ++col) {
-    for (int row = col; row < matrix.blockCountXY; ++row) {
-      matrix.blockByteOffsets[continuous_index] = cumulative_offset;
-      elementByteSize = 0;
-      distance = abs(row - col);
-      if (distance < boundary0) {
-        elementByteSize = sizeof(double);
-        matrix.precisionTypes[continuous_index] =
-            static_cast<int>(elementByteSize);
-        fp64_blocks++;
-      } else if (distance < boundary1) {
-        elementByteSize = sizeof(float);
-        matrix.precisionTypes[continuous_index] =
-            static_cast<int>(elementByteSize);
-        fp32_blocks++;
-      } else {
-        elementByteSize = sizeof(sycl::half);
-        matrix.precisionTypes[continuous_index] =
-            static_cast<int>(elementByteSize);
-        fp16_blocks++;
-      }
-      cumulative_offset +=
-          elementByteSize * conf::matrixBlockSize * conf::matrixBlockSize;
-      continuous_index++;
-    }
-  }
-
-  // Resize matrix vector to byte size
-  const std::size_t totalByteSize =
-      matrix.blockByteOffsets[matrix.blockByteOffsets.size() - 1] +
-      matrix.precisionTypes[matrix.precisionTypes.size() - 1] *
-          matrix.blockSize * matrix.blockSize;
-  matrix.allocate(totalByteSize);
-  std::cout << "Generator allocation size: " << totalByteSize << "\n";
-
-  if (continuous_index != matrixBlockCount) {
-    std::cout << "OH NO, the block count is wrong, index: " << continuous_index
-              << " calc: " << matrixBlockCount << "\n";
-  }
-  std::cout << "FP64, FP32, FP16 blocks: (" << fp64_blocks << "," << fp32_blocks
-            << "," << fp16_blocks << ")" << std::endl;
 
   // Build temporary input data vector
   std::size_t nRegressors = 8;
-  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
-      trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
+  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::shared>>
+      trainingInput{usm_allocator<conf::fp_type, usm::alloc::shared>(queueGPU)};
   std::size_t offset = nRegressors - 1;
   trainingInput.resize(conf::N + offset);
-
-  // Prepare memory pointers
-  unsigned char *matrixBytes = matrix.matrixData.data();
-  conf::fp_type *trainingInputData = trainingInput.data();
 
   std::ifstream dataInputStream(path);
   std::string valueString;
@@ -99,9 +39,51 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
     throw std::runtime_error("Not enough data available!");
   }
 
+  // Calculate block precisions based on their ranks
+  std::vector<int> trainingPrecisionTypes =
+      RankFinder::compute_block_precisions(trainingInput, conf::N,
+                                           conf::matrixBlockSize, nRegressors);
+
+  // Calculate byte offsets for all blocks based on precision
+  std::size_t fp16_blocks = 0;
+  std::size_t fp32_blocks = 0;
+  std::size_t fp64_blocks = 0;
+  std::size_t cumulative_offset = 0;
+  for (std::size_t i = 0; i < trainingPrecisionTypes.size(); ++i) {
+    matrix.blockByteOffsets[i] = cumulative_offset;
+    matrix.precisionTypes[i] = trainingPrecisionTypes[i];
+    switch (trainingPrecisionTypes[i]) {
+    case 2:
+      fp16_blocks++;
+      break;
+    case 4:
+      fp32_blocks++;
+      break;
+    case 8:
+      fp64_blocks++;
+      break;
+    }
+    cumulative_offset += trainingPrecisionTypes[i] * conf::matrixBlockSize *
+                         conf::matrixBlockSize;
+  }
+
+  std::cout << "(fp64, fp32, fp16): (" << fp64_blocks << ", " << fp32_blocks
+            << ", " << fp16_blocks << ")\n";
+
+  // Resize matrix vector to byte size
+  const std::size_t totalByteSize =
+      matrix.blockByteOffsets[matrix.blockByteOffsets.size() - 1] +
+      matrix.precisionTypes[matrix.precisionTypes.size() - 1] *
+          matrix.blockSize * matrix.blockSize;
+  matrix.allocate(totalByteSize);
+
   // block count of all columns except the first one
   const int referenceBlockCount =
       (matrix.blockCountXY * (matrix.blockCountXY - 1)) / 2;
+
+  // Prepare memory pointers
+  unsigned char *matrixBytes = matrix.matrixData.data();
+  conf::fp_type *trainingInputData = trainingInput.data();
 
   std::size_t N = conf::N;
   for (std::size_t i_block = 0;

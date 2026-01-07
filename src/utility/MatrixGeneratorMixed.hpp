@@ -3,7 +3,6 @@
 
 #include <sycl/sycl.hpp>
 
-#include "RightHandSide.hpp"
 #include "SymmetricMatrixMixed.hpp"
 
 /**
