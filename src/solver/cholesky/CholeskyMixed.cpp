@@ -705,6 +705,7 @@ void CholeskyMixed::solve_heterogeneous() {
     const std::size_t blockOffsetDiagBlock = A.blockByteOffsets[blockID];
     const std::size_t blockSizeBytes =
         A.precisionTypes[blockID] * A.blockSize * A.blockSize;
+    const int blockPrecision = A.precisionTypes[blockID];
 
     // check if row that splits GPU/CPU part of the matrix has to change and
     // apply the change if necessary
@@ -717,7 +718,7 @@ void CholeskyMixed::solve_heterogeneous() {
     }
 
     // perform Cholesky decomposition on diagonal block A_kk
-    choleskyUpdateCurrentDiagonalBlock(blockSizeBytes, k, blockID,
+    choleskyUpdateCurrentDiagonalBlock(blockSizeBytes, k, blockPrecision,
                                        blockOffsetDiagBlock);
 
     // solve triangular system for current column k below the diagonal
