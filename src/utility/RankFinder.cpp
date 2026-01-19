@@ -139,6 +139,7 @@ int RankFinder::get_block_id(int i_block, int j_block, int blockCountXY) {
 // Compute ranks for all blocks and return precision types
 // Returns a vector where index = blockID, value = precision type
 std::vector<int> RankFinder::compute_all_block_ranks(
+    sycl::queue &queue,
     const std::vector<
         conf::fp_type,
         sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
@@ -180,15 +181,16 @@ int RankFinder::determine_precision(int rank, int blockSize, bool isDiagonal) {
   }
 
   // Off-diagonal blocks can use lower precision for low-rank blocks
-  if (rankRatio > 0.8)
+  if (rankRatio > 0.7)
     return 8; // FP64
-  if (rankRatio > 0.3)
+  if (rankRatio > 0.15)
     return 4; // FP32
   return 2;   // FP16
 }
 
 // Main function to compute precision types for all blocks
 std::vector<int> RankFinder::compute_block_precisions(
+    sycl::queue &queue,
     const std::vector<
         conf::fp_type,
         sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
@@ -200,8 +202,8 @@ std::vector<int> RankFinder::compute_block_precisions(
 
   // First compute all ranks
   std::vector<int> blockRanks = compute_all_block_ranks(
-      trainingInputData, N, matrixBlockSize, nRegressors, verticalLengthscale,
-      lengthscale, noiseVariance);
+      queue, trainingInputData, N, matrixBlockSize, nRegressors,
+      verticalLengthscale, lengthscale, noiseVariance);
 
   // Then determine precision for each block
   std::vector<int> precisionTypes(totalBlocks);

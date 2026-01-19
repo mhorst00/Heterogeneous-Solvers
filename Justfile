@@ -32,6 +32,6 @@ _acpp_setup:
   git checkout {{ACPP_VERSION}}
   mkdir -p build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX={{ACPP_PREFIX}} -DACPP_EXPERIMENTAL_LLVM=ON ..
+  cmake -DCMAKE_INSTALL_PREFIX={{ACPP_PREFIX}} -DCMAKE_C_COMPILER=$(which clang) -DCMAKE_CXX_COMPILER=$(which clang++) -DROCM_DEVICE_LIBS_PATH=/usr/lib64/rocm/llvm/lib/clang/20/lib/amdgcn/bitcode -DACPP_EXPERIMENTAL_LLVM=ON ..
   make -j $(nproc --all)
   make install

@@ -39,10 +39,36 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
     throw std::runtime_error("Not enough data available!");
   }
 
-  // Calculate block precisions based on their ranks
-  std::vector<int> trainingPrecisionTypes =
-      RankFinder::compute_block_precisions(trainingInput, conf::N,
-                                           conf::matrixBlockSize, nRegressors);
+  std::vector<int> trainingPrecisionTypes;
+  trainingPrecisionTypes.resize(matrix.blockCountXY *
+                                (matrix.blockCountXY + 1) / 2);
+  if (conf::qr) {
+    // Calculate block precisions based on their ranks
+    std::cout << "-- computing qr decomposition to find block precisions"
+              << std::endl;
+    trainingPrecisionTypes = RankFinder::compute_block_precisions(
+        queue, trainingInput, conf::N, conf::matrixBlockSize, nRegressors);
+  } else if (!conf::qr) {
+    // Calculate block precision based on distance
+    std::size_t continuous_index = 0;
+    const int remaining_precision = (conf::fp16) ? 2 : 4;
+    for (std::size_t i_block = 0;
+         i_block < static_cast<std::size_t>(matrix.blockCountXY); ++i_block) {
+      for (std::size_t j_block = 0; j_block <= i_block; j_block++) {
+        const int distance = sycl::abs(i_block - j_block);
+        const double rel_distance =
+            static_cast<double>(distance) / matrix.blockCountXY;
+        if (rel_distance < 0.5) {
+          trainingPrecisionTypes[continuous_index] = 8;
+        } else if (rel_distance < 0.85) {
+          trainingPrecisionTypes[continuous_index] = 4;
+        } else {
+          trainingPrecisionTypes[continuous_index] = remaining_precision;
+        }
+        continuous_index++;
+      }
+    }
+  }
 
   // Calculate byte offsets for all blocks based on precision
   std::size_t fp16_blocks = 0;
@@ -114,7 +140,8 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
-                // Add correct typing to both arrays according to block index
+                // Add correct typing to both arrays according to block
+                // index
                 sycl::half *matrixDataTyped =
                     reinterpret_cast<sycl::half *>(matrixBytes + byteOffset);
                 const unsigned int i_local = idx[0];
@@ -148,7 +175,8 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
-                // Add correct typing to both arrays according to block index
+                // Add correct typing to both arrays according to block
+                // index
                 float *matrixDataTyped =
                     reinterpret_cast<float *>(matrixBytes + byteOffset);
                 const unsigned int i_local = idx[0];
@@ -184,7 +212,8 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
         queue.submit([&](handler &h) {
           h.parallel_for(
               range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
-                // Add correct typing to both arrays according to block index
+                // Add correct typing to both arrays according to block
+                // index
                 double *matrixDataTyped =
                     reinterpret_cast<double *>(matrixBytes + byteOffset);
                 const unsigned int i_local = idx[0];
