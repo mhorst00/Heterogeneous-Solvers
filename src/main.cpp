@@ -109,7 +109,10 @@ int main(int argc, char *argv[]) {
       cxxopts::value<bool>())("gpr",
                               "perform gaussian process regression (GPR)",
                               cxxopts::value<bool>())(
-      "mixed", "enable mixed precision mode", cxxopts::value<bool>());
+      "mixed", "enable mixed precision mode", cxxopts::value<bool>())(
+      "fp16", "enable fp16 for mixed precision", cxxopts::value<bool>())(
+      "qr", "use qr decomposition for precision calculation",
+      cxxopts::value<bool>());
 
   const auto arguments = argumentOptions.parse(argc, argv);
 
@@ -235,6 +238,14 @@ int main(int argc, char *argv[]) {
 
   if (arguments.count("mixed")) {
     conf::mixed = arguments["mixed"].as<bool>();
+  }
+
+  if (arguments.count("fp16")) {
+    conf::fp16 = arguments["fp16"].as<bool>();
+  }
+
+  if (arguments.count("qr")) {
+    conf::qr = arguments["qr"].as<bool>();
   }
 
   sycl::property_list properties{sycl::property::queue::enable_profiling()};

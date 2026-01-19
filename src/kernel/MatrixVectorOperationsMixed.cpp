@@ -601,10 +601,9 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
 
   const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-  const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) *
-                                      conf::matrixBlockSize *
-                                      conf::matrixBlockSize;
   const int totalBlockCount = blockCountXY * (blockCountXY + 1) / 2;
+
+  unsigned char *ABytes = reinterpret_cast<unsigned char *>(A);
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
     h.parallel_for(kernelRange, [=](auto &nd_item) {
@@ -619,29 +618,66 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
       const std::size_t blockStartIndex_b_i =
           static_cast<std::size_t>(blockStart + group_id) * matrixBlockSize;
 
-      // block in the matrix used for the update
-      const std::size_t blockStartIndex_Aij =
-          (!transposed)
-              ? blockStartIndex +
-                    static_cast<std::size_t>(blockStart - blockRow + group_id) *
-                        matrixBlockSize * matrixBlockSize
-              : (totalBlockCount -
-                 static_cast<std::size_t>(
-                     (blockCountXY - group_id - blockStart) *
-                     (blockCountXY - group_id - blockStart + 1) / 2) +
-                 blockRow - group_id - blockStart) *
-                    matrixBlockSize * matrixBlockSize;
+      // Compute the block ID for the matrix block used in the update
+      int blockID_Aij;
+      if (!transposed) {
+        blockID_Aij = blockID + (blockStart - blockRow + group_id);
+      } else {
+        blockID_Aij = totalBlockCount -
+                      ((blockCountXY - group_id - blockStart) *
+                       (blockCountXY - group_id - blockStart + 1) / 2) +
+                      blockRow - group_id - blockStart;
+      }
+
+      const std::size_t byteOffset = blockByteOffsets[blockID_Aij];
+      const int precision = precisionTypes[blockID_Aij];
 
       conf::fp_type sum = 0.0;
-      if (!transposed) {
-        for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-          // sum += A[blockStartIndex_Aij + local_i * matrixBlockSize + k] *
-          //        b[blockStartIndex_b_0 + k];
+      if (precision == 2) {
+        sycl::half *A_typed =
+            reinterpret_cast<sycl::half *>(ABytes + byteOffset);
+        if (!transposed) {
+          for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
+            sum += static_cast<conf::fp_type>(
+                       A_typed[local_i * matrixBlockSize + k]) *
+                   b[blockStartIndex_b_0 + k];
+          }
+        } else {
+          for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
+            sum += static_cast<conf::fp_type>(
+                       A_typed[k * matrixBlockSize + local_i]) *
+                   b[blockStartIndex_b_0 + k];
+          }
         }
-      } else {
-        for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-          // sum += A[blockStartIndex_Aij + k * matrixBlockSize + local_i] *
-          //        b[blockStartIndex_b_0 + k];
+      } else if (precision == 4) {
+        float *A_typed = reinterpret_cast<float *>(ABytes + byteOffset);
+        if (!transposed) {
+          for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
+            sum += static_cast<conf::fp_type>(
+                       A_typed[local_i * matrixBlockSize + k]) *
+                   b[blockStartIndex_b_0 + k];
+          }
+        } else {
+          for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
+            sum += static_cast<conf::fp_type>(
+                       A_typed[k * matrixBlockSize + local_i]) *
+                   b[blockStartIndex_b_0 + k];
+          }
+        }
+      } else if (precision == 8) {
+        double *A_typed = reinterpret_cast<double *>(ABytes + byteOffset);
+        if (!transposed) {
+          for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
+            sum += static_cast<conf::fp_type>(
+                       A_typed[local_i * matrixBlockSize + k]) *
+                   b[blockStartIndex_b_0 + k];
+          }
+        } else {
+          for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
+            sum += static_cast<conf::fp_type>(
+                       A_typed[k * matrixBlockSize + local_i]) *
+                   b[blockStartIndex_b_0 + k];
+          }
         }
       }
       b[blockStartIndex_b_i + local_i] -= sum;

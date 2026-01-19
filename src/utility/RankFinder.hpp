@@ -11,6 +11,7 @@ class RankFinder {
 public:
   // Main function to compute precision types for all blocks
   static std::vector<int> compute_block_precisions(
+      sycl::queue &queue,
       const std::vector<
           conf::fp_type,
           sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
@@ -43,6 +44,7 @@ private:
   // Compute ranks for all blocks and return precision types
   // Returns a vector where index = blockID, value = precision type
   static std::vector<int> compute_all_block_ranks(
+      sycl::queue &queue,
       const std::vector<
           conf::fp_type,
           sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>

@@ -76,6 +76,8 @@ struct Configuration {
   bool trackCholeskySolveStep =
       true;           /// hws library will track the solve step too if enabled
   bool mixed = false; /// enable mixed precision mode
+  bool fp16 = false;  /// enable fp16 precision in mixed mode
+  bool qr = false;    /// enable qr decomposition to calculate ranks
 };
 
 Configuration &get();
@@ -139,6 +141,9 @@ inline bool &trackCholeskySolveStep = get().trackCholeskySolveStep;
 
 inline bool &mixed = get().mixed;
 
+inline bool &fp16 = get().fp16;
+
+inline bool &qr = get().qr;
 } // namespace conf
 
 #endif // CONFIGURATION_HPP
