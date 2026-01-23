@@ -15,8 +15,8 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
 
   // Build temporary input data vector
   std::size_t nRegressors = 8;
-  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::shared>>
-      trainingInput{usm_allocator<conf::fp_type, usm::alloc::shared>(queueGPU)};
+  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
+      trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
   std::size_t offset = nRegressors - 1;
   trainingInput.resize(conf::N + offset);
 

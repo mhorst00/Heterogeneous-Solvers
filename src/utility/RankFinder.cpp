@@ -78,9 +78,8 @@ int RankFinder::compute_rank_qr(std::vector<double> &A, int m, int n,
 // Build a single block's covariance matrix and compute its rank
 // Returns the rank of the block
 int RankFinder::compute_block_rank(
-    const std::vector<
-        conf::fp_type,
-        sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
+    const std::vector<conf::fp_type, sycl::usm_allocator<
+                                         conf::fp_type, sycl::usm::alloc::host>>
         &trainingInputData,
     std::size_t i_block, std::size_t j_block, std::size_t N,
     std::size_t matrixBlockSize, std::size_t nRegressors,
@@ -140,9 +139,8 @@ int RankFinder::get_block_id(int i_block, int j_block, int blockCountXY) {
 // Returns a vector where index = blockID, value = precision type
 std::vector<int> RankFinder::compute_all_block_ranks(
     sycl::queue &queue,
-    const std::vector<
-        conf::fp_type,
-        sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
+    const std::vector<conf::fp_type, sycl::usm_allocator<
+                                         conf::fp_type, sycl::usm::alloc::host>>
         &trainingInputData,
     std::size_t N, std::size_t matrixBlockSize, std::size_t nRegressors,
     double verticalLengthscale, double lengthscale, double noiseVariance) {
@@ -191,9 +189,8 @@ int RankFinder::determine_precision(int rank, int blockSize, bool isDiagonal) {
 // Main function to compute precision types for all blocks
 std::vector<int> RankFinder::compute_block_precisions(
     sycl::queue &queue,
-    const std::vector<
-        conf::fp_type,
-        sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
+    const std::vector<conf::fp_type, sycl::usm_allocator<
+                                         conf::fp_type, sycl::usm::alloc::host>>
         &trainingInputData,
     std::size_t N, std::size_t matrixBlockSize, std::size_t nRegressors,
     double verticalLengthscale, double lengthscale, double noiseVariance) {
