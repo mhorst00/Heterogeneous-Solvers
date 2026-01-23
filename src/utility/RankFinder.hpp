@@ -14,7 +14,7 @@ public:
       sycl::queue &queue,
       const std::vector<
           conf::fp_type,
-          sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
+          sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
           &trainingInputData,
       std::size_t N, std::size_t matrixBlockSize, std::size_t nRegressors,
       double verticalLengthscale = 1.0, double lengthscale = 1.0,
@@ -31,7 +31,7 @@ private:
   static int compute_block_rank(
       const std::vector<
           conf::fp_type,
-          sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
+          sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
           &trainingInputData,
       std::size_t i_block, std::size_t j_block, std::size_t N,
       std::size_t matrixBlockSize, std::size_t nRegressors,
@@ -47,7 +47,7 @@ private:
       sycl::queue &queue,
       const std::vector<
           conf::fp_type,
-          sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
+          sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
           &trainingInputData,
       std::size_t N, std::size_t matrixBlockSize, std::size_t nRegressors,
       double verticalLengthscale = 1.0, double lengthscale = 1.0,

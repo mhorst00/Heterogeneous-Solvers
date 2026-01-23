@@ -41,8 +41,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
       // first index for block columns
       int block_j = blockStart_j;
 
-      int byte_offset = 0;
-
       conf::fp_type resultValue = 0;
       if (addToPreviousEntries) {
         resultValue += result[i];
@@ -63,8 +61,8 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         blockID = block_i + referenceBlockCount - columnBlocksToRight;
 
         // Get pre-calculated byte offset and precision type from USM
-        byte_offset = blockByteOffsets[blockID];
-        int precision_type = precisionTypes[blockID];
+        const std::size_t byte_offset = blockByteOffsets[blockID];
+        const int precision_type = precisionTypes[blockID];
 
         // startIndex of the current block with blockID in the symmetric matrix
         // data structure
@@ -94,8 +92,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         }
       }
 
-      byte_offset = 0;
-
       // Second step: Process all matrix blocks after the diagonal block
       // the blocks have to be interpreted as transposed, since the upper
       // triangle is not stored explicitly
@@ -109,8 +105,8 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         blockID = block_j + referenceBlockCount - columnBlocksToRight;
 
         // Get pre-calculated byte offset and precision type from USM
-        byte_offset = blockByteOffsets[blockID];
-        int precision_type = precisionTypes[blockID];
+        const std::size_t byte_offset = blockByteOffsets[blockID];
+        const int precision_type = precisionTypes[blockID];
 
         // go through all columns of the block and compute the matrix vector
         // product the block in storage now has to be interpreted as transposed
@@ -180,8 +176,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
       // first index for block columns
       int block_j = blockStart_j;
 
-      int byte_offset = 0;
-
       conf::fp_type resultValue = 0;
       if (addToPreviousEntries) {
         resultValue += result[i];
@@ -209,7 +203,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
             static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
         // Get pre-calculated byte offset and precision type from USM
-        byte_offset = blockByteOffsets[blockID];
+        const std::size_t byte_offset = blockByteOffsets[blockID];
         int precision_type = precisionTypes[blockID];
 
         // cache part of rhs b in local memory
@@ -239,8 +233,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
         }
       }
 
-      byte_offset = 0;
-
       // Second step: Process all matrix blocks after the diagonal block
       // the blocks have to be interpreted as transposed, since the upper
       // triangle is not stored explicitly
@@ -254,7 +246,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
         blockID = block_j + referenceBlockCount - columnBlocksToRight;
 
         // Get pre-calculated byte offset and precision type from USM
-        byte_offset = blockByteOffsets[blockID];
+        const std::size_t byte_offset = blockByteOffsets[blockID];
         int precision_type = precisionTypes[blockID];
 
         // cache part of rhs b in local memory
@@ -328,8 +320,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
       // first index for block columns
       int block_j = blockStart_j;
 
-      int byte_offset = 0;
-
       conf::fp_type resultValue = 0;
       if (addToPreviousEntries) {
         resultValue += result[i];
@@ -350,7 +340,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
         blockID = block_i + referenceBlockCount - columnBlocksToRight;
 
         // Get pre-calculated byte offset and precision type from USM
-        byte_offset = blockByteOffsets[blockID];
+        const std::size_t byte_offset = blockByteOffsets[blockID];
         int precision_type = precisionTypes[blockID];
 
         std::size_t rowStartIndex =
@@ -378,8 +368,6 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
         }
       }
 
-      byte_offset = 0;
-
       // Second step: Process all matrix blocks after the diagonal block
       // the blocks have to be interpreted as transposed, since the upper
       // triangle is not stored explicitly
@@ -393,7 +381,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
         blockID = block_j + referenceBlockCount - columnBlocksToRight;
 
         // Get pre-calculated byte offset and precision type from USM
-        byte_offset = blockByteOffsets[blockID];
+        const std::size_t byte_offset = blockByteOffsets[blockID];
         int precision_type = precisionTypes[blockID];
 
         // go through all columns of the block and compute the matrix vector
@@ -442,7 +430,7 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
                                       conf::matrixBlockSize *
                                       conf::matrixBlockSize;
 
-  int byte_offset = blockByteOffsets[blockID];
+  const std::size_t byte_offset = blockByteOffsets[blockID];
   int precision_type = precisionTypes[blockID];
   unsigned char *A_bytes = static_cast<unsigned char *>(A);
 

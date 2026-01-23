@@ -312,7 +312,6 @@ int main(int argc, char *argv[]) {
       }
     } else if (conf::algorithm == "cholesky") {
       if (conf::mixed) {
-        MatrixParserMixed::writeFullMatrix("./test_pre.txt", A_mixed.value());
         CholeskyMixed cholesky(A_mixed.value(), cpuQueue, gpuQueue,
                                loadBalancer);
         cholesky.solve_heterogeneous();
