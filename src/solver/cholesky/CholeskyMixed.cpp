@@ -609,13 +609,6 @@ void CholeskyMixed::copyResultFromGPU(const int blockCountATotal) {
               // manually calculate last block size to prevent overflow
               : A.blockSize * A.blockSize * A.precisionTypes[blockID];
 
-      if (!(static_cast<std::size_t>(blockID) < A.blockByteOffsets.size() - 1))
-        std::cout << "Weird byte calc did thing!\n";
-
-      std::cout << "copying blockid: " << blockID << " for "
-                << blockCountGPUinColumn << " blocks starting at offset "
-                << blockStartOffset << " for a total of " << blockByteCount
-                << " bytes\n";
       gpuQueue.submit([&](handler &h) {
         h.memcpy(reinterpret_cast<unsigned char *>(A.matrixData.data()) +
                      blockStartOffset,
@@ -711,8 +704,8 @@ void CholeskyMixed::solve_heterogeneous() {
     // apply the change if necessary
     shiftSplit(blockCountATotal, blockSizeBytes, k, blockOffsetDiagBlock);
 
-    // change offset for matrix-matrix step from 0 to 1 depending on how far we
-    // are into the computation
+    // change offset for matrix-matrix step from 0 to 1 depending on how far
+    // we are into the computation
     if (blockStartGPU <= k + 1) {
       offsetMatrixMatrixStepGPU = 1;
     }
@@ -727,7 +720,8 @@ void CholeskyMixed::solve_heterogeneous() {
     // update the blocks on the diagonal below the current diagonal block
     choleskyUpdateDiagonal(k, blockID);
 
-    // update the blocks in the lower triangle below the current diagonal block
+    // update the blocks in the lower triangle below the current diagonal
+    // block
     choleskyUpdateLowerBlockTriangle(k, blockID);
 
     // time measurement and output
