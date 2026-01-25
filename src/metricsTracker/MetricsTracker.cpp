@@ -1,6 +1,7 @@
 #include <numeric>
 #include <iostream>
 #include <filesystem>
+#include <string>
 
 #include "MetricsTracker.hpp"
 #include "UtilityFunctions.hpp"
@@ -181,6 +182,9 @@ void MetricsTracker::writeJSON(std::string& path) {
 #else
     metricsJSON << "\t \"FP_type\":                         " + std::string("\"FP_32\"") + ",\n";
 #endif
+    metricsJSON << "\t \"mixed\":                           " + std::to_string(conf::mixed) + ",\n";
+    metricsJSON << "\t \"fp16\":                            " + std::to_string(conf::fp16) + ",\n";
+    metricsJSON << "\t \"qr\":                              " + std::to_string(conf::qr) + ",\n";
 
     metricsJSON << "\t \"matrixBlockSize\":                 " + std::to_string(conf::matrixBlockSize) + ",\n";
     metricsJSON << "\t \"workGroupSize\":                   " + std::to_string(conf::workGroupSize) + ",\n";
