@@ -9,7 +9,9 @@ SymmetricMatrixMixed::SymmetricMatrixMixed(const std::size_t N,
     : N(N), blockSize(blockSize),
       blockCountXY(
           std::ceil(static_cast<double>(N) / static_cast<double>(blockSize))),
+      blockCountFP16(0), blockCountFP32(0), blockCountFP64(0),
       precisionTypes(sycl::usm_allocator<int, sycl::usm::alloc::shared>(queue)),
+      blockRanks(sycl::usm_allocator<int, sycl::usm::alloc::shared>(queue)),
       blockByteOffsets(
           sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>(queue)),
       // allocate float, needs to be resized to actual size anyway
@@ -18,6 +20,7 @@ SymmetricMatrixMixed::SymmetricMatrixMixed(const std::size_t N,
   // allocate memory for matrix storage
   const std::size_t blockCount = (blockCountXY * (blockCountXY + 1)) / 2.0;
   precisionTypes.resize(blockCount);
+  blockRanks.resize(blockCount);
   blockByteOffsets.resize(blockCount);
 }
 
