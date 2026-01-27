@@ -656,6 +656,10 @@ void CholeskyMixed::printFinalTimes() {
 }
 
 void CholeskyMixed::solve_heterogeneous() {
+  // Store block counts to tracker
+  metricsTracker.blockCountFP16 = A.blockCountFP16;
+  metricsTracker.blockCountFP32 = A.blockCountFP32;
+  metricsTracker.blockCountFP64 = A.blockCountFP64;
   executionTimes.start = std::chrono::steady_clock::now();
   metricsTracker.startTracking();
 

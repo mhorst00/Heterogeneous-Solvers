@@ -185,6 +185,12 @@ void MetricsTracker::writeJSON(std::string& path) {
     metricsJSON << "\t \"mixed\":                           " + std::to_string(conf::mixed) + ",\n";
     metricsJSON << "\t \"fp16\":                            " + std::to_string(conf::fp16) + ",\n";
     metricsJSON << "\t \"qr\":                              " + std::to_string(conf::qr) + ",\n";
+    metricsJSON << "\t \"blockCounts\": {\n";
+    metricsJSON << "\t\t \"total\":                   " + std::to_string(blockCountFP16+blockCountFP32+blockCountFP64) + ",\n";
+    metricsJSON << "\t\t \"fp16\":                    " + std::to_string(blockCountFP16) + ",\n";
+    metricsJSON << "\t\t \"fp32\":                    " + std::to_string(blockCountFP32) + ",\n";
+    metricsJSON << "\t\t \"fp64\":                    " + std::to_string(blockCountFP64) + "\n";
+    metricsJSON << "\t },\n";
 
     metricsJSON << "\t \"matrixBlockSize\":                 " + std::to_string(conf::matrixBlockSize) + ",\n";
     metricsJSON << "\t \"workGroupSize\":                   " + std::to_string(conf::workGroupSize) + ",\n";

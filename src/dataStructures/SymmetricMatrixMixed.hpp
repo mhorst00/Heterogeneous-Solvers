@@ -54,9 +54,16 @@ public:
   const int blockSize;
   // block Count in X/Y direction (if the matrix would be stored completely)
   const int blockCountXY;
+  // block counts
+  std::size_t blockCountFP16;
+  std::size_t blockCountFP32;
+  std::size_t blockCountFP64;
   // SYCL shared memory containing array of precision per block in block order
   std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>>
       precisionTypes;
+  // SYCL shared memory containing array of rank per block in block order
+  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>>
+      blockRanks;
   // SYCL shared memory containing array of byte offset until current block
   std::vector<std::size_t,
               sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>>

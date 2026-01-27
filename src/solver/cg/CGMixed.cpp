@@ -35,6 +35,11 @@ CGMixed::CGMixed(SymmetricMatrixMixed &A, RightHandSide &b, queue &cpuQueue,
 }
 
 void CGMixed::solveHeterogeneous() {
+  // Store block counts to tracker
+  metricsTracker.blockCountFP16 = A.blockCountFP16;
+  metricsTracker.blockCountFP32 = A.blockCountFP32;
+  metricsTracker.blockCountFP64 = A.blockCountFP64;
+
   const auto start = std::chrono::steady_clock::now();
   metricsTracker.startTracking();
 
@@ -417,8 +422,6 @@ void CGMixed::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
     delta_new = delta_new + tmp_cpu[0];
   }
   delta_zero = delta_new;
-  std::cout << "Finished initCG with delta_zero: " << delta_zero
-            << " delta_new: " << delta_new << std::endl;
 }
 
 void CGMixed::compute_q() {

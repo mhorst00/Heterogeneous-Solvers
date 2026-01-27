@@ -93,8 +93,10 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
                          conf::matrixBlockSize;
   }
 
-  std::cout << "(fp64, fp32, fp16): (" << fp64_blocks << ", " << fp32_blocks
-            << ", " << fp16_blocks << ")\n";
+  // Store block counts in data structure
+  matrix.blockCountFP16 = fp16_blocks;
+  matrix.blockCountFP32 = fp32_blocks;
+  matrix.blockCountFP64 = fp64_blocks;
 
   // Resize matrix vector to byte size
   const std::size_t totalByteSize =
@@ -102,6 +104,30 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
       matrix.precisionTypes[matrix.precisionTypes.size() - 1] *
           matrix.blockSize * matrix.blockSize;
   matrix.allocate(totalByteSize);
+
+  const std::size_t block_elements =
+      conf::matrixBlockSize * conf::matrixBlockSize;
+
+  // Calculate and print size savings for mixed precision
+  const std::size_t fp16_bytes =
+      fp16_blocks * block_elements * sizeof(sycl::half);
+  const std::size_t fp32_bytes = fp32_blocks * block_elements * sizeof(float);
+  const std::size_t fp64_bytes = fp64_blocks * block_elements * sizeof(double);
+  const std::size_t saved_bytes = (fp16_blocks + fp32_blocks + fp64_blocks) *
+                                      block_elements * sizeof(conf::fp_type) -
+                                  totalByteSize;
+
+  std::cout << "-- mixed precision memory usage:\n";
+  if (conf::fp16) {
+    std::cout << "---- " << fp16_blocks << " FP16 blocks using "
+              << fp16_bytes / 1024 / 1024 << " MB\n";
+  }
+  std::cout << "---- " << fp32_blocks << " FP32 blocks using "
+            << fp32_bytes / 1024 / 1024 << " MB\n";
+  std::cout << "---- " << fp64_blocks << " FP64 blocks using "
+            << fp64_bytes / 1024 / 1024 << " MB\n";
+  std::cout << "---- mixed precision saving a total of "
+            << saved_bytes / 1024 / 1024 << " MB\n";
 
   // block count of all columns except the first one
   const int referenceBlockCount =
