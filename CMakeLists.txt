@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 option(ENABLE_TESTS "Enable Test" OFF)
 option(USE_DOUBLE "Use FP64 precision instead of FP32 for floating point data types" ON)
 set(GPU_VENDOR "NVIDIA" CACHE STRING "GPU vendor: NVIDIA, AMD and INTEL are supported")
+set(HWS_SAMPLING_INTERVAL_DEFAULT 10 CACHE STRING "Default sampling interval for the hws library")
 
 # DPC++ only options
 option(USE_DPCPP "Use DPC++" OFF)
@@ -108,12 +109,14 @@ if (${USE_DPCPP})
 endif ()
 
 target_compile_definitions(heterogeneous_solvers_lib PUBLIC ${GPU_VENDOR})
+target_compile_definitions(heterogeneous_solvers_lib PUBLIC HWS_SAMPLING_INTERVAL_DEFAULT=${HWS_SAMPLING_INTERVAL_DEFAULT})
 
 message("Building the hardware sampling library")
 # build and link the hws library
 set(HWS_ENABLE_PYTHON_BINDINGS OFF CACHE INTERNAL "" FORCE)
-set(HWS_SAMPLING_INTERVAL 10 CACHE INTERNAL "" FORCE)
+set(HWS_SAMPLING_INTERVAL ${HWS_SAMPLING_INTERVAL_DEFAULT} CACHE INTERNAL "" FORCE)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS TRUE CACHE BOOL "" FORCE)
+
 
 FetchContent_Declare(
         hws
