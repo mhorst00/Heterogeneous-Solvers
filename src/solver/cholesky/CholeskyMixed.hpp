@@ -20,7 +20,7 @@ public:
   ~CholeskyMixed();
 
   SymmetricMatrixMixed &A; /// Mixed precision SPD matrix A
-  void *A_gpu;             /// GPU data structure for A
+  unsigned char *A_gpu;    /// GPU data structure for A
 
   queue &cpuQueue; /// SYCL queue for the CPU device
   queue &gpuQueue; /// SYCL queue for the GPU device
