@@ -22,8 +22,9 @@ void CholeskyMixed::initGPUMemory() {
   // init GPU data structure for matrix A on which the Cholesky decomposition
   // should be performed
   const std::size_t bytesGPU = A.matrixData.size() * sizeof(unsigned char);
-  std::cout << "GPU malloc size: " << bytesGPU << std::endl;
   A_gpu = reinterpret_cast<unsigned char *>(malloc_device(bytesGPU, gpuQueue));
+  std::cout << "GPU malloc size: " << bytesGPU
+            << " starting at: " << reinterpret_cast<void *>(A_gpu) << std::endl;
   // Copy the matrix A to the GPU
   gpuQueue
       .submit(
@@ -77,6 +78,12 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
     }
 
     if (gpuProportion_new == 1 && k < A.blockCountXY - minBlockCountGPU) {
+      int blockID = 0;
+      for (std::size_t idx = 0; idx < A.blockByteOffsets.size(); ++idx) {
+        if (blockOffsetDiagBlock == A.blockByteOffsets[idx]) {
+          blockID = idx;
+        }
+      }
       // if GPU proportion turns 100%, current diagonal block might now be
       // needed on the GPU if min GPU block count not yet reached
       gpuQueue
@@ -88,7 +95,7 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
           .wait();
       std::cout << "Copied " << blockSizeBytes
                 << " bytes from CPU to GPU at offset " << blockOffsetDiagBlock
-                << "\n";
+                << " , blockID: " << blockID << "\n ";
     }
   }
 
@@ -150,7 +157,8 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
           });
           std::cout << "Copied " << A_blockSizeBytes
                     << " bytes from CPU to GPU at offset " << A_blockOffset
-                    << "\n";
+                    << " blockID: " << blockID
+                    << " blocksToCopy: " << blocksToCopy << "\n";
         }
       }
       gpuQueue.wait();
@@ -191,7 +199,7 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
         });
         std::cout << "Copied " << A_blockSizeBytes
                   << " bytes from GPU to CPU at offset " << A_blockOffset
-                  << "\n";
+                  << ", blockID: " << blockID << "\n";
       }
       gpuQueue.wait();
     }
@@ -267,6 +275,13 @@ void CholeskyMixed::choleskyUpdateCurrentDiagonalBlock(
     gpuQueue.wait();
     if (gpuProportion != 1) {
       // copy updated current diagonal block to CPU memory
+      int blockID = 0;
+      for (std::size_t idx = 0; idx < A.blockByteOffsets.size(); ++idx) {
+        if (blockOffsetDiagBlock == A.blockByteOffsets[idx]) {
+          blockID = idx;
+          break;
+        }
+      }
       gpuQueue
           .submit([&](handler &h) {
             h.memcpy(A.matrixData.data() + blockOffsetDiagBlock,
@@ -275,7 +290,7 @@ void CholeskyMixed::choleskyUpdateCurrentDiagonalBlock(
           .wait();
       std::cout << "Copied " << blockSizeBytes
                 << " bytes from GPU to CPU at offset " << blockOffsetDiagBlock
-                << "\n";
+                << ", blockID: " << blockID << "\n";
     }
   }
   executionTimes.endCholesky = std::chrono::steady_clock::now();
@@ -625,7 +640,7 @@ void CholeskyMixed::copyResultFromGPU(const int blockCountATotal) {
       });
       std::cout << "Copied " << blockByteCount
                 << " bytes from GPU to CPU at offset " << blockStartOffset
-                << "\n";
+                << ", blockID: " << blockID << "\n";
     }
     gpuQueue.wait();
   } else if (gpuProportion == 1) {

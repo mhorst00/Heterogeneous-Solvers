@@ -52,10 +52,13 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
     // Calculate block precision based on distance
     std::size_t continuous_index = 0;
     const int remaining_precision = (conf::fp16) ? 2 : 4;
-    for (std::size_t i_block = 0;
-         i_block < static_cast<std::size_t>(matrix.blockCountXY); ++i_block) {
-      for (std::size_t j_block = 0; j_block <= i_block; j_block++) {
-        const int distance = sycl::abs(i_block - j_block);
+    for (std::size_t col = 0;
+         col < static_cast<std::size_t>(matrix.blockCountXY); ++col) {
+      for (std::size_t row = col;
+           row < static_cast<std::size_t>(matrix.blockCountXY); ++row) {
+        std::cout << "row: " << row
+                  << ", continuous_index: " << continuous_index << "\n";
+        const int distance = sycl::abs(row - col);
         const double rel_distance =
             static_cast<double>(distance) / matrix.blockCountXY;
         if (rel_distance < 0.1) {
@@ -76,6 +79,8 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
   std::size_t fp64_blocks = 0;
   std::size_t cumulative_offset = 0;
   for (std::size_t i = 0; i < trainingPrecisionTypes.size(); ++i) {
+    std::cout << "blockID: " << i << ", prec: " << trainingPrecisionTypes[i]
+              << ", calculated offset: " << cumulative_offset << "\n";
     matrix.blockByteOffsets[i] = cumulative_offset;
     matrix.precisionTypes[i] = trainingPrecisionTypes[i];
     switch (trainingPrecisionTypes[i]) {
