@@ -345,6 +345,78 @@ void MatrixParserMixed::writeBlockedMatrix(const std::string &path,
   output.close();
 }
 
+void MatrixParserMixed::writeBlockedMatrixGPU(
+    const std::string &path, const SymmetricMatrixMixed &matrix,
+    const unsigned char *matrix_gpu) {
+  std::ofstream output(path);
+
+  output << std::setprecision(10) << std::fixed;
+
+  const unsigned char *matrixBytes = matrix_gpu;
+
+  for (int rowIndex = 0; rowIndex < matrix.blockCountXY * matrix.blockSize;
+       ++rowIndex) // for each row
+  {
+    if (rowIndex % conf::matrixBlockSize == 0) {
+      output << std::endl;
+    }
+    // row index divided by the block size to determine block index later
+    auto rowDivBlock = std::div(rowIndex, matrix.blockSize);
+    const int rowBlockIndex = rowDivBlock.quot;
+
+    int blockCountLeftColumns = 0;
+    for (int columnBlockIndex = 0; columnBlockIndex <= rowBlockIndex;
+         ++columnBlockIndex) {
+      const int blockIndex =
+          blockCountLeftColumns + (rowDivBlock.quot - columnBlockIndex);
+
+      // start offset of block in matrix data structure
+      const std::size_t blockStartOffset = matrix.blockByteOffsets[blockIndex];
+
+      // row index in block
+      const int value_i = rowDivBlock.rem;
+
+      // for each column in block
+      for (unsigned int value_j = 0; value_j < conf::matrixBlockSize;
+           ++value_j) {
+        conf::fp_type value;
+        if (matrix.precisionTypes[blockIndex] == 2) {
+          const sycl::half *matrixTyped = reinterpret_cast<const sycl::half *>(
+              matrixBytes + blockStartOffset);
+          // location as read in file in lower triangle (i,j)
+          value = static_cast<conf::fp_type>(
+              matrixTyped[value_i * conf::matrixBlockSize + value_j]);
+        } else if (matrix.precisionTypes[blockIndex] == 4) {
+          const float *matrixTyped =
+              reinterpret_cast<const float *>(matrixBytes + blockStartOffset);
+          value = static_cast<conf::fp_type>(
+              matrixTyped[value_i * conf::matrixBlockSize + value_j]);
+        } else if (matrix.precisionTypes[blockIndex] == 8) {
+          const double *matrixTyped =
+              reinterpret_cast<const double *>(matrixBytes + blockStartOffset);
+          value = static_cast<conf::fp_type>(
+              matrixTyped[value_i * conf::matrixBlockSize + value_j]);
+        } else {
+          throw std::runtime_error("Invalid block precision encountered!\n");
+        }
+
+        if (value >= 0) {
+          output << " " << value << ";";
+        } else {
+          output << value << ";";
+        }
+      }
+
+      // increment number of blocks in all columns left of the current column
+      blockCountLeftColumns += matrix.blockCountXY - columnBlockIndex;
+
+      output << "\t";
+    }
+    output << std::endl;
+  }
+  output.close();
+}
+
 void MatrixParserMixed::writeFullMatrix(const std::string &path,
                                         const SymmetricMatrixMixed &matrix) {
   std::ofstream output(path);

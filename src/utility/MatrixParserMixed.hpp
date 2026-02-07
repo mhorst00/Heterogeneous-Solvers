@@ -55,6 +55,17 @@ public:
                                  const SymmetricMatrixMixed &matrix);
 
   /**
+   * Writes the symmetric matrix stored on the GPU into a txt file for debugging
+   * purposes. The diagonal blocks, where entries get mirrored will be
+   * represented too.
+   *
+   * @param path output path
+   * @param matrix the symmtetric matrix
+   */
+  static void writeBlockedMatrixGPU(const std::string &path,
+                                    const SymmetricMatrixMixed &matrix,
+                                    const unsigned char *matrix_gpu);
+  /**
    * Writes the full symmetric matrix into a txt file for debugging purposes.
    *
    * @param path output path
