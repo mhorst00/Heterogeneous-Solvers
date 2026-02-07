@@ -26,4 +26,6 @@ SymmetricMatrixMixed::SymmetricMatrixMixed(const std::size_t N,
 
 void SymmetricMatrixMixed::allocate(size_t total_bytes) {
   matrixData.resize(total_bytes);
+  // Add sentinel for safe offset range computation
+  blockByteOffsets.push_back(total_bytes);
 }

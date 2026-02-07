@@ -79,7 +79,7 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
 
     if (gpuProportion_new == 1 && k < A.blockCountXY - minBlockCountGPU) {
       int blockID = 0;
-      for (std::size_t idx = 0; idx < A.blockByteOffsets.size(); ++idx) {
+      for (std::size_t idx = 0; idx < A.blockByteOffsets.size() - 1; ++idx) {
         if (blockOffsetDiagBlock == A.blockByteOffsets[idx]) {
           blockID = idx;
         }
@@ -184,10 +184,7 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal,
 
         const std::size_t A_blockOffset = A.blockByteOffsets[blockID];
         const std::size_t A_blockSizeBytes =
-            (static_cast<std::size_t>(blockID) < A.blockByteOffsets.size() - 1)
-                ? A.blockByteOffsets[blockID + blocksToCopy] - A_blockOffset
-                // manually calculate last block size to prevent overflow
-                : A.blockSize * A.blockSize * A.precisionTypes[blockID];
+            A.blockByteOffsets[blockID + blocksToCopy] - A_blockOffset;
 
         std::cout << "shiftSplit A_blockSizeBytes: " << A_blockSizeBytes
                   << "\n";
@@ -319,7 +316,7 @@ void CholeskyMixed::choleskySolveTriangularSystemColumn(const int k,
     executionTimes.startCopy_column = std::chrono::steady_clock::now();
     const std::size_t blockStartOffset = A.blockByteOffsets[blockID + 1];
     const std::size_t blockByteCount =
-        A.blockByteOffsets[blockID + blockCountCPU] - blockStartOffset;
+        A.blockByteOffsets[blockID + 1 + blockCountCPU] - blockStartOffset;
     // copy updated blocks by CPU to the GPU
     gpuQueue
         .submit([&](handler &h) {
@@ -628,11 +625,8 @@ void CholeskyMixed::copyResultFromGPU(const int blockCountATotal) {
       }
 
       std::size_t blockByteCount =
-          (static_cast<std::size_t>(blockID) < A.blockByteOffsets.size() - 1)
-              ? A.blockByteOffsets[blockID + blockCountGPUinColumn] -
-                    blockStartOffset
-              // manually calculate last block size to prevent overflow
-              : A.blockSize * A.blockSize * A.precisionTypes[blockID];
+          A.blockByteOffsets[blockID + blockCountGPUinColumn] -
+          blockStartOffset;
 
       gpuQueue.submit([&](handler &h) {
         h.memcpy(A.matrixData.data() + blockStartOffset,
@@ -719,8 +713,8 @@ void CholeskyMixed::solve_heterogeneous() {
   // begin with tiled Cholesky decomposition using right-looking algorithm
   for (int k = 0; k < A.blockCountXY; ++k) {
     initExecutionTimes();
-    const auto weird_bound = 50;
-    std::size_t weird = 0;
+    auto current_iteration = fmt::format("./debug/gpu_matrix_{0}.txt", k);
+    MatrixParserMixed::writeBlockedMatrixGPU(current_iteration, A, A_gpu);
 
     // ID and start index of diagonal block A_kk
     const int columnsToRight = A.blockCountXY - k;
@@ -735,45 +729,6 @@ void CholeskyMixed::solve_heterogeneous() {
     // apply the change if necessary
     shiftSplit(blockCountATotal, blockSizeBytes, k, blockOffsetDiagBlock);
 
-    weird = 0;
-    for (int block = 0; block < static_cast<int>(A.precisionTypes.size());
-         ++block) {
-      const int block_prec = A.precisionTypes[block];
-      const std::size_t block_offset = A.blockByteOffsets[block];
-      if (block_prec == 2) {
-        auto A_Typed =
-            reinterpret_cast<sycl::half *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 4) {
-        auto A_Typed =
-            reinterpret_cast<float *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 8) {
-        auto A_Typed =
-            reinterpret_cast<double *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      }
-    }
-    std::cout << "Iteration " << k << ": " << weird
-              << " weird occurences after shiftSplit\n";
     // change offset for matrix-matrix step from 0 to 1 depending on how far
     // we are into the computation
     if (blockStartGPU <= k + 1) {
@@ -783,177 +738,15 @@ void CholeskyMixed::solve_heterogeneous() {
     // perform Cholesky decomposition on diagonal block A_kk
     choleskyUpdateCurrentDiagonalBlock(blockSizeBytes, k, blockPrecision,
                                        blockOffsetDiagBlock);
-
-    weird = 0;
-    for (int block = 0; block < static_cast<int>(A.precisionTypes.size());
-         ++block) {
-      const int block_prec = A.precisionTypes[block];
-      const std::size_t block_offset = A.blockByteOffsets[block];
-      if (block_prec == 2) {
-        auto A_Typed =
-            reinterpret_cast<sycl::half *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 4) {
-        auto A_Typed =
-            reinterpret_cast<float *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 8) {
-        auto A_Typed =
-            reinterpret_cast<double *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      }
-    }
-    std::cout << "Iteration " << k << ": " << weird
-              << " weird occurences after choleskyUpdateCurrentDiagonalBlock\n";
-
     // solve triangular system for current column k below the diagonal
     choleskySolveTriangularSystemColumn(k, blockID);
-
-    weird = 0;
-    for (int block = 0; block < static_cast<int>(A.precisionTypes.size());
-         ++block) {
-      const int block_prec = A.precisionTypes[block];
-      const std::size_t block_offset = A.blockByteOffsets[block];
-      if (block_prec == 2) {
-        auto A_Typed =
-            reinterpret_cast<sycl::half *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 4) {
-        auto A_Typed =
-            reinterpret_cast<float *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 8) {
-        auto A_Typed =
-            reinterpret_cast<double *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      }
-    }
-    std::cout
-        << "Iteration " << k << ": " << weird
-        << " weird occurences after choleskySolveTriangularSystemColumn\n";
 
     // update the blocks on the diagonal below the current diagonal block
     choleskyUpdateDiagonal(k, blockID);
 
-    weird = 0;
-    for (int block = 0; block < static_cast<int>(A.precisionTypes.size());
-         ++block) {
-      const int block_prec = A.precisionTypes[block];
-      const std::size_t block_offset = A.blockByteOffsets[block];
-      if (block_prec == 2) {
-        auto A_Typed =
-            reinterpret_cast<sycl::half *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 4) {
-        auto A_Typed =
-            reinterpret_cast<float *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 8) {
-        auto A_Typed =
-            reinterpret_cast<double *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      }
-    }
-    std::cout << "Iteration " << k << ": " << weird
-              << " weird occurences after choleskyUpdateDiagonal\n";
-
     // update the blocks in the lower triangle below the current diagonal
     // block
     choleskyUpdateLowerBlockTriangle(k, blockID);
-
-    weird = 0;
-    for (int block = 0; block < static_cast<int>(A.precisionTypes.size());
-         ++block) {
-      const int block_prec = A.precisionTypes[block];
-      const std::size_t block_offset = A.blockByteOffsets[block];
-      if (block_prec == 2) {
-        auto A_Typed =
-            reinterpret_cast<sycl::half *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 4) {
-        auto A_Typed =
-            reinterpret_cast<float *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      } else if (block_prec == 8) {
-        auto A_Typed =
-            reinterpret_cast<double *>(A.matrixData.data() + block_offset);
-        for (int elem = 0; elem < static_cast<int>(conf::matrixBlockSize *
-                                                   conf::matrixBlockSize);
-             ++elem) {
-          const auto value = A_Typed[elem];
-          if (std::abs(value) > weird_bound)
-            weird++;
-        }
-      }
-    }
-    std::cout << "Iteration " << k << ": " << weird
-              << " weird occurences after choleskyUpdateLowerBlockTriangle\n";
 
     // time measurement and output
     printTimes(k);
