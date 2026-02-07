@@ -6,10 +6,9 @@
 using namespace sycl;
 
 sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
-    queue &queue, void *A, const conf::fp_type *b, conf::fp_type *result,
-    int *precisionTypes, std::size_t *blockByteOffsets, const int blockStart_i,
-    const int blockStart_j, const int blockCount_i, const int blockCount_j,
-    const int blockCountXY, const bool reset) {
+    queue &queue, void *A, const conf::fp_type *b, conf::fp_type *result, int *precisionTypes,
+    std::size_t *blockByteOffsets, const int blockStart_i, const int blockStart_j,
+    const int blockCount_i, const int blockCount_j, const int blockCountXY, const bool reset) {
   // global range corresponds to number of rows in the (sub) matrix
   const range globalRange(blockCount_i * conf::matrixBlockSize);
   const range localRange(conf::workGroupSize);
@@ -49,8 +48,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
       // First step: Process all matrix blocks up to the diagonal block
       // (included) or the most left block that should be processed the blocks
       // can be interpreted as they are stored in memory
-      for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1);
-           ++block_j) {
+      for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1); ++block_j) {
         // number of blocks in row to the right (if matrix would be full)
         const int block_j_inv = blockCountXY - (block_j + 1);
 
@@ -68,8 +66,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
         // data structure
         // std::size_t blockStartIndex = static_cast<std::size_t>(blockID) *
         //                               matrixBlockSize * matrixBlockSize;
-        std::size_t rowStartIndex =
-            static_cast<std::size_t>(iInBlock) * matrixBlockSize;
+        std::size_t rowStartIndex = static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
         // go through all columns of the block and compute the matrix vector
         // product
@@ -77,8 +74,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
           // Cast based on precision and access
           conf::fp_type a_value = 0;
           if (precision_type == 2) {
-            sycl::half *A_fp16 =
-                reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
+            sycl::half *A_fp16 = reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[rowStartIndex + j];
           } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
@@ -115,8 +111,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
           // Cast based on precision and access
           conf::fp_type a_value = 0;
           if (precision_type == 2) {
-            sycl::half *A_fp16 =
-                reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
+            sycl::half *A_fp16 = reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[j * matrixBlockSize + iInBlock];
           } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
@@ -139,10 +134,9 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock(
 }
 
 sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
-    sycl::queue &queue, void *A, const conf::fp_type *b, conf::fp_type *result,
-    int *precisionTypes, std::size_t *blockByteOffsets, const int blockStart_i,
-    const int blockStart_j, const int blockCount_i, const int blockCount_j,
-    const int blockCountXY, const bool reset) {
+    sycl::queue &queue, void *A, const conf::fp_type *b, conf::fp_type *result, int *precisionTypes,
+    std::size_t *blockByteOffsets, const int blockStart_i, const int blockStart_j,
+    const int blockCount_i, const int blockCount_j, const int blockCountXY, const bool reset) {
   // global range corresponds to number of rows in the (sub) matrix
   const range globalRange(blockCount_i * conf::matrixBlockSize);
   const range localRange(conf::workGroupSize);
@@ -184,8 +178,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
       // First step: Process all matrix blocks up to the diagonal block
       // (included) or the most left block that should be processed the blocks
       // can be interpreted as they are stored in memory
-      for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1);
-           ++block_j) {
+      for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1); ++block_j) {
         // number of blocks in row to the right (if matrix would be full)
         const int block_j_inv = blockCountXY - (block_j + 1);
 
@@ -199,8 +192,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
         // data structure
         // std::size_t blockStartIndex = static_cast<std::size_t>(blockID) *
         //                               matrixBlockSize * matrixBlockSize;
-        std::size_t rowStartIndex =
-            static_cast<std::size_t>(iInBlock) * matrixBlockSize;
+        std::size_t rowStartIndex = static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
         // Get pre-calculated byte offset and precision type from USM
         const std::size_t byte_offset = blockByteOffsets[blockID];
@@ -208,8 +200,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
 
         // cache part of rhs b in local memory
         nd_item.barrier();
-        local_b[nd_item.get_local_id()] =
-            b[block_j * matrixBlockSize + nd_item.get_local_id()];
+        local_b[nd_item.get_local_id()] = b[block_j * matrixBlockSize + nd_item.get_local_id()];
         nd_item.barrier();
 
         // go through all columns of the block and compute the matrix vector
@@ -218,8 +209,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
           // Cast based on precision and access
           conf::fp_type a_value = 0;
           if (precision_type == 2) {
-            sycl::half *A_fp16 =
-                reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
+            sycl::half *A_fp16 = reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[rowStartIndex + j];
           } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
@@ -251,8 +241,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
 
         // cache part of rhs b in local memory
         nd_item.barrier();
-        local_b[nd_item.get_local_id()] =
-            b[block_j * matrixBlockSize + nd_item.get_local_id()];
+        local_b[nd_item.get_local_id()] = b[block_j * matrixBlockSize + nd_item.get_local_id()];
         nd_item.barrier();
 
         // go through all columns of the block and compute the matrix vector
@@ -262,8 +251,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
           // Cast based on precision and access
           conf::fp_type a_value = 0;
           if (precision_type == 2) {
-            sycl::half *A_fp16 =
-                reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
+            sycl::half *A_fp16 = reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[j * matrixBlockSize + iInBlock];
           } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
@@ -286,10 +274,9 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
 }
 
 sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
-    sycl::queue &queue, void *A, const conf::fp_type *b, conf::fp_type *result,
-    int *precisionTypes, std::size_t *blockByteOffsets, const int blockStart_i,
-    const int blockStart_j, const int blockCount_i, const int blockCount_j,
-    const int blockCountXY, const bool reset) {
+    sycl::queue &queue, void *A, const conf::fp_type *b, conf::fp_type *result, int *precisionTypes,
+    std::size_t *blockByteOffsets, const int blockStart_i, const int blockStart_j,
+    const int blockCount_i, const int blockCount_j, const int blockCountXY, const bool reset) {
   // global range corresponds to number of rows in the (sub) matrix
   const std::size_t globalRange = blockCount_i * conf::matrixBlockSize;
   const auto kernelRange = range{globalRange};
@@ -328,8 +315,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
       // First step: Process all matrix blocks up to the diagonal block
       // (included) or the most left block that should be processed the blocks
       // can be interpreted as they are stored in memory
-      for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1);
-           ++block_j) {
+      for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1); ++block_j) {
         // number of blocks in row to the right (if matrix would be full)
         const int block_j_inv = blockCountXY - (block_j + 1);
 
@@ -343,8 +329,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
         const std::size_t byte_offset = blockByteOffsets[blockID];
         int precision_type = precisionTypes[blockID];
 
-        std::size_t rowStartIndex =
-            static_cast<std::size_t>(iInBlock) * matrixBlockSize;
+        std::size_t rowStartIndex = static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
         // go through all columns of the block and compute the matrix vector
         // product
@@ -353,8 +338,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
           // Cast based on precision and access
           conf::fp_type a_value = 0;
           if (precision_type == 2) {
-            sycl::half *A_fp16 =
-                reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
+            sycl::half *A_fp16 = reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[rowStartIndex + j];
           } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
@@ -392,8 +376,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
           // Cast based on precision and access
           conf::fp_type a_value = 0;
           if (precision_type == 2) {
-            sycl::half *A_fp16 =
-                reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
+            sycl::half *A_fp16 = reinterpret_cast<sycl::half *>(A_bytes + byte_offset);
             a_value = A_fp16[j * matrixBlockSize + iInBlock];
           } else if (precision_type == 4) {
             float *A_fp32 = reinterpret_cast<float *>(A_bytes + byte_offset);
@@ -417,8 +400,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_CPU(
 
 sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
     sycl::queue &queue, void *A, conf::fp_type *b, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockRow, const int blockID,
-    const bool transposed) {
+    std::size_t *blockByteOffsets, const int blockRow, const int blockID, const bool transposed) {
   // one work-group, one work-item per entry in b
   const range globalRange(conf::matrixBlockSize);
   const range localRange(conf::matrixBlockSize);
@@ -426,9 +408,8 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
 
   const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-  const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) *
-                                      conf::matrixBlockSize *
-                                      conf::matrixBlockSize;
+  const std::size_t blockStartIndex =
+      static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
 
   const std::size_t byte_offset = blockByteOffsets[blockID];
   int precision_type = precisionTypes[blockID];
@@ -444,8 +425,7 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
         int local_i = nd_item.get_local_id(0);
 
         // block in the vector b where the results are written
-        const std::size_t blockStartIndex_B =
-            static_cast<std::size_t>(blockRow) * matrixBlockSize;
+        const std::size_t blockStartIndex_B = static_cast<std::size_t>(blockRow) * matrixBlockSize;
 
         for (int i = 0; i < static_cast<int>(matrixBlockSize); ++i) {
           int k = i;
@@ -454,8 +434,7 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
           }
 
           // b_k = b_k/a_kk
-          const conf::fp_type b_k =
-              b[blockStartIndex_B + k] / A_fp16[k * matrixBlockSize + k];
+          const conf::fp_type b_k = b[blockStartIndex_B + k] / A_fp16[k * matrixBlockSize + k];
 
           nd_item.barrier();
 
@@ -469,12 +448,10 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
             // b_i = b_i - a_ik*b_k
             if (!transposed) {
               b[blockStartIndex_B + local_i] =
-                  b[blockStartIndex_B + local_i] -
-                  A_fp16[local_i * matrixBlockSize + k] * b_k;
+                  b[blockStartIndex_B + local_i] - A_fp16[local_i * matrixBlockSize + k] * b_k;
             } else {
               b[blockStartIndex_B + local_i] =
-                  b[blockStartIndex_B + local_i] -
-                  A_fp16[k * matrixBlockSize + local_i] * b_k;
+                  b[blockStartIndex_B + local_i] - A_fp16[k * matrixBlockSize + local_i] * b_k;
             }
           }
 
@@ -489,8 +466,7 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
         int local_i = nd_item.get_local_id(0);
 
         // block in the vector b where the results are written
-        const std::size_t blockStartIndex_B =
-            static_cast<std::size_t>(blockRow) * matrixBlockSize;
+        const std::size_t blockStartIndex_B = static_cast<std::size_t>(blockRow) * matrixBlockSize;
 
         for (int i = 0; i < static_cast<int>(matrixBlockSize); ++i) {
           int k = i;
@@ -499,8 +475,7 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
           }
 
           // b_k = b_k/a_kk
-          const conf::fp_type b_k =
-              b[blockStartIndex_B + k] / A_fp32[k * matrixBlockSize + k];
+          const conf::fp_type b_k = b[blockStartIndex_B + k] / A_fp32[k * matrixBlockSize + k];
 
           nd_item.barrier();
 
@@ -514,12 +489,10 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
             // b_i = b_i - a_ik*b_k
             if (!transposed) {
               b[blockStartIndex_B + local_i] =
-                  b[blockStartIndex_B + local_i] -
-                  A_fp32[local_i * matrixBlockSize + k] * b_k;
+                  b[blockStartIndex_B + local_i] - A_fp32[local_i * matrixBlockSize + k] * b_k;
             } else {
               b[blockStartIndex_B + local_i] =
-                  b[blockStartIndex_B + local_i] -
-                  A_fp32[k * matrixBlockSize + local_i] * b_k;
+                  b[blockStartIndex_B + local_i] - A_fp32[k * matrixBlockSize + local_i] * b_k;
             }
           }
 
@@ -534,8 +507,7 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
         int local_i = nd_item.get_local_id(0);
 
         // block in the vector b where the results are written
-        const std::size_t blockStartIndex_B =
-            static_cast<std::size_t>(blockRow) * matrixBlockSize;
+        const std::size_t blockStartIndex_B = static_cast<std::size_t>(blockRow) * matrixBlockSize;
 
         for (int i = 0; i < static_cast<int>(matrixBlockSize); ++i) {
           int k = i;
@@ -544,8 +516,7 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
           }
 
           // b_k = b_k/a_kk
-          const conf::fp_type b_k =
-              b[blockStartIndex_B + k] / A_fp64[k * matrixBlockSize + k];
+          const conf::fp_type b_k = b[blockStartIndex_B + k] / A_fp64[k * matrixBlockSize + k];
 
           nd_item.barrier();
 
@@ -559,12 +530,10 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
             // b_i = b_i - a_ik*b_k
             if (!transposed) {
               b[blockStartIndex_B + local_i] =
-                  b[blockStartIndex_B + local_i] -
-                  A_fp64[local_i * matrixBlockSize + k] * b_k;
+                  b[blockStartIndex_B + local_i] - A_fp64[local_i * matrixBlockSize + k] * b_k;
             } else {
               b[blockStartIndex_B + local_i] =
-                  b[blockStartIndex_B + local_i] -
-                  A_fp64[k * matrixBlockSize + local_i] * b_k;
+                  b[blockStartIndex_B + local_i] - A_fp64[k * matrixBlockSize + local_i] * b_k;
             }
           }
 
@@ -579,9 +548,8 @@ sycl::event MatrixVectorOperationsMixed::triangularSolveBlockVector(
 
 sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
     sycl::queue &queue, void *A, conf::fp_type *b, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockStart, const int blockCount,
-    const int blockRow, const int blockID, int blockCountXY,
-    const bool transposed) {
+    std::size_t *blockByteOffsets, const int blockStart, const int blockCount, const int blockRow,
+    const int blockID, int blockCountXY, const bool transposed) {
   // one work-group per block in column
   const range globalRange(blockCount * conf::matrixBlockSize);
   const range localRange(conf::matrixBlockSize);
@@ -599,8 +567,7 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
       const int group_id = nd_item.get_group().get_group_id(0);
 
       // block in the vector b used for the update
-      const std::size_t blockStartIndex_b_0 =
-          static_cast<std::size_t>(blockRow) * matrixBlockSize;
+      const std::size_t blockStartIndex_b_0 = static_cast<std::size_t>(blockRow) * matrixBlockSize;
 
       // block in the vector b where the results are written
       const std::size_t blockStartIndex_b_i =
@@ -622,18 +589,15 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
 
       conf::fp_type sum = 0.0;
       if (precision == 2) {
-        sycl::half *A_typed =
-            reinterpret_cast<sycl::half *>(ABytes + byteOffset);
+        sycl::half *A_typed = reinterpret_cast<sycl::half *>(ABytes + byteOffset);
         if (!transposed) {
           for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-            sum += static_cast<conf::fp_type>(
-                       A_typed[local_i * matrixBlockSize + k]) *
+            sum += static_cast<conf::fp_type>(A_typed[local_i * matrixBlockSize + k]) *
                    b[blockStartIndex_b_0 + k];
           }
         } else {
           for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-            sum += static_cast<conf::fp_type>(
-                       A_typed[k * matrixBlockSize + local_i]) *
+            sum += static_cast<conf::fp_type>(A_typed[k * matrixBlockSize + local_i]) *
                    b[blockStartIndex_b_0 + k];
           }
         }
@@ -641,14 +605,12 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
         float *A_typed = reinterpret_cast<float *>(ABytes + byteOffset);
         if (!transposed) {
           for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-            sum += static_cast<conf::fp_type>(
-                       A_typed[local_i * matrixBlockSize + k]) *
+            sum += static_cast<conf::fp_type>(A_typed[local_i * matrixBlockSize + k]) *
                    b[blockStartIndex_b_0 + k];
           }
         } else {
           for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-            sum += static_cast<conf::fp_type>(
-                       A_typed[k * matrixBlockSize + local_i]) *
+            sum += static_cast<conf::fp_type>(A_typed[k * matrixBlockSize + local_i]) *
                    b[blockStartIndex_b_0 + k];
           }
         }
@@ -656,14 +618,12 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
         double *A_typed = reinterpret_cast<double *>(ABytes + byteOffset);
         if (!transposed) {
           for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-            sum += static_cast<conf::fp_type>(
-                       A_typed[local_i * matrixBlockSize + k]) *
+            sum += static_cast<conf::fp_type>(A_typed[local_i * matrixBlockSize + k]) *
                    b[blockStartIndex_b_0 + k];
           }
         } else {
           for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-            sum += static_cast<conf::fp_type>(
-                       A_typed[k * matrixBlockSize + local_i]) *
+            sum += static_cast<conf::fp_type>(A_typed[k * matrixBlockSize + local_i]) *
                    b[blockStartIndex_b_0 + k];
           }
         }
@@ -675,9 +635,11 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
   return event;
 }
 
-sycl::event MatrixVectorOperationsMixed::matrixVectorGP(
-    sycl::queue &queue, void *A, conf::fp_type *b, conf::fp_type *result,
-    int *precisionTypes, std::size_t *blockByteOffsets, int n, int m) {
+sycl::event MatrixVectorOperationsMixed::matrixVectorGP(sycl::queue &queue, void *A,
+                                                        conf::fp_type *b, conf::fp_type *result,
+                                                        int *precisionTypes,
+                                                        std::size_t *blockByteOffsets, int n,
+                                                        int m) {
   sycl::event event = queue.submit([&](sycl::handler &h) {
     h.parallel_for(m, [=](auto &id) {
       const unsigned int i = id[0];

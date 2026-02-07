@@ -21,8 +21,8 @@ public:
    * @return a sycl event of the kernel execution
    */
   template <typename T>
-  static sycl::event cholesky(sycl::queue &queue, T *A,
-                              const std::size_t blockStartOffset, int blockRow);
+  static sycl::event cholesky(sycl::queue &queue, T *A, const std::size_t blockStartOffset,
+                              int blockRow);
 
   /**
    * This method performs a cholesky decomposition on a diagonal block of the
@@ -41,8 +41,8 @@ public:
    * @return a sycl event of the kernel execution
    */
   template <typename T>
-  static sycl::event cholesky_GPU(sycl::queue &queue, T *A,
-                                  std::size_t blockStartOffset, int blockRow);
+  static sycl::event cholesky_GPU(sycl::queue &queue, T *A, std::size_t blockStartOffset,
+                                  int blockRow);
 
   /**
    * This method performs a cholesky decomposition on a diagonal block of the
@@ -62,8 +62,7 @@ public:
    * @return a sycl event of the kernel execution
    */
   template <typename T>
-  static sycl::event cholesky_optimizedGPU(sycl::queue &queue, T *A,
-                                           std::size_t blockStartOffset,
+  static sycl::event cholesky_optimizedGPU(sycl::queue &queue, T *A, std::size_t blockStartOffset,
                                            int blockRow);
 };
 

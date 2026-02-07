@@ -20,8 +20,7 @@ public:
    * @param queueGPU GPU queue
    * @return a SPD matrix
    */
-  static SymmetricMatrixMixed generateSPDMatrixMixed(std::string &path,
-                                                     sycl::queue &queue,
+  static SymmetricMatrixMixed generateSPDMatrixMixed(std::string &path, sycl::queue &queue,
                                                      sycl::queue &queueGPU);
 
   /**
@@ -34,17 +33,14 @@ public:
    * @param queueGPU GPU queue
    * @param K_star the test kernel matrix
    */
-  static void generateTestKernelMatrixMixed(std::string &path_train,
-                                            std::string &path_test,
-                                            sycl::queue &queue,
-                                            sycl::queue &queueGPU,
+  static void generateTestKernelMatrixMixed(std::string &path_train, std::string &path_test,
+                                            sycl::queue &queue, sycl::queue &queueGPU,
                                             conf::fp_type *K_star);
 
 private:
   static void readInputVector(
       std::string &path,
-      std::vector<conf::fp_type,
-                  sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
+      std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
           &dataVector,
       int N, int offset);
 };

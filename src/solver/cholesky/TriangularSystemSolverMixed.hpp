@@ -15,9 +15,8 @@ using namespace sycl;
  */
 class TriangularSystemSolverMixed {
 public:
-  TriangularSystemSolverMixed(SymmetricMatrixMixed &A, void *A_gpu,
-                              RightHandSide &b, queue &cpuQueue,
-                              queue &gpuQueue,
+  TriangularSystemSolverMixed(SymmetricMatrixMixed &A, void *A_gpu, RightHandSide &b,
+                              queue &cpuQueue, queue &gpuQueue,
                               std::shared_ptr<LoadBalancer> loadBalancer);
 
   SymmetricMatrixMixed &A; /// SPD matrix A

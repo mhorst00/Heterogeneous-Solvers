@@ -29,12 +29,11 @@ public:
    * result vector.
    * @return a sycl event of the kernel execution
    */
-  static sycl::event
-  matrixVectorBlock(sycl::queue &queue, void *A, const conf::fp_type *b,
-                    conf::fp_type *result, int *precisionTypes,
-                    std::size_t *blockByteOffsets, int blockStart_i,
-                    int blockStart_j, int blockCount_i, int blockCount_j,
-                    int blockCountXY, bool reset = true);
+  static sycl::event matrixVectorBlock(sycl::queue &queue, void *A, const conf::fp_type *b,
+                                       conf::fp_type *result, int *precisionTypes,
+                                       std::size_t *blockByteOffsets, int blockStart_i,
+                                       int blockStart_j, int blockCount_i, int blockCount_j,
+                                       int blockCountXY, bool reset = true);
 
   /**
    * Parallel SYCL implementation of a blocked matrix vector product Ab = x on
@@ -60,12 +59,11 @@ public:
    * result vector.
    * @return a sycl event of the kernel execution
    */
-  static sycl::event
-  matrixVectorBlock_GPU(sycl::queue &queue, void *A, const conf::fp_type *b,
-                        conf::fp_type *result, int *precisionTypes,
-                        std::size_t *blockByteOffsets, int blockStart_i,
-                        int blockStart_j, int blockCount_i, int blockCount_j,
-                        int blockCountXY, bool reset = true);
+  static sycl::event matrixVectorBlock_GPU(sycl::queue &queue, void *A, const conf::fp_type *b,
+                                           conf::fp_type *result, int *precisionTypes,
+                                           std::size_t *blockByteOffsets, int blockStart_i,
+                                           int blockStart_j, int blockCount_i, int blockCount_j,
+                                           int blockCountXY, bool reset = true);
 
   /**
    * Parallel SYCL implementation of a blocked matrix vector product Ab = x on
@@ -92,12 +90,11 @@ public:
    * result vector.
    * @return a sycl event of the kernel execution
    */
-  static sycl::event
-  matrixVectorBlock_CPU(sycl::queue &queue, void *A, const conf::fp_type *b,
-                        conf::fp_type *result, int *precisionTypes,
-                        std::size_t *blockByteOffsets, int blockStart_i,
-                        int blockStart_j, int blockCount_i, int blockCount_j,
-                        int blockCountXY, bool reset = true);
+  static sycl::event matrixVectorBlock_CPU(sycl::queue &queue, void *A, const conf::fp_type *b,
+                                           conf::fp_type *result, int *precisionTypes,
+                                           std::size_t *blockByteOffsets, int blockStart_i,
+                                           int blockStart_j, int blockCount_i, int blockCount_j,
+                                           int blockCountXY, bool reset = true);
 
   /**
    * Parallel SYCL implementation of a triangular solve for a single matrix
@@ -116,10 +113,9 @@ public:
    * transposed, i.e., an upper triangular matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event
-  triangularSolveBlockVector(sycl::queue &queue, void *A, conf::fp_type *b,
-                             int *precisionTypes, std::size_t *blockByteOffsets,
-                             int blockRow, int blockID, bool transposed);
+  static sycl::event triangularSolveBlockVector(sycl::queue &queue, void *A, conf::fp_type *b,
+                                                int *precisionTypes, std::size_t *blockByteOffsets,
+                                                int blockRow, int blockID, bool transposed);
 
   /**
    * Parallel SYCL implementation of the column update step for a blocked
@@ -145,11 +141,10 @@ public:
    * transposed, i.e., an upper triangular matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event
-  matrixVectorColumnUpdate(sycl::queue &queue, void *A, conf::fp_type *b,
-                           int *precisionTypes, std::size_t *blockByteOffsets,
-                           int blockStart, int blockCount, int blockRow,
-                           int blockID, int blockCountXY, bool transposed);
+  static sycl::event matrixVectorColumnUpdate(sycl::queue &queue, void *A, conf::fp_type *b,
+                                              int *precisionTypes, std::size_t *blockByteOffsets,
+                                              int blockStart, int blockCount, int blockRow,
+                                              int blockID, int blockCountXY, bool transposed);
 
   /**
    * Performs a naive, unoptimized classical matrix-vector product that gets
@@ -164,11 +159,9 @@ public:
    * @param m column count of A
    * @return a sycl event of the kernel execution
    */
-  static sycl::event matrixVectorGP(sycl::queue &queue, void *A,
-                                    conf::fp_type *b, conf::fp_type *result,
-                                    int *precisionTypes,
-                                    std::size_t *blockByteOffsets, int n,
-                                    int m);
+  static sycl::event matrixVectorGP(sycl::queue &queue, void *A, conf::fp_type *b,
+                                    conf::fp_type *result, int *precisionTypes,
+                                    std::size_t *blockByteOffsets, int n, int m);
 };
 
 #endif // MATRIXVECTOROPERATIONSMIXED_HPP

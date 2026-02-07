@@ -3,9 +3,10 @@
 #include "MatrixVectorOperationsMixed.hpp"
 #include "UtilityFunctions.hpp"
 
-TriangularSystemSolverMixed::TriangularSystemSolverMixed(
-    SymmetricMatrixMixed &A, void *A_gpu, RightHandSide &b, queue &cpuQueue,
-    queue &gpuQueue, std::shared_ptr<LoadBalancer> loadBalancer)
+TriangularSystemSolverMixed::TriangularSystemSolverMixed(SymmetricMatrixMixed &A, void *A_gpu,
+                                                         RightHandSide &b, queue &cpuQueue,
+                                                         queue &gpuQueue,
+                                                         std::shared_ptr<LoadBalancer> loadBalancer)
     : A(A), b(b), A_gpu(A_gpu), cpuQueue(cpuQueue), gpuQueue(gpuQueue),
       loadBalancer(std::move(loadBalancer)) {}
 
@@ -31,20 +32,18 @@ double TriangularSystemSolverMixed::solve() {
   for (int j = 0; j < A.blockCountXY; ++j) {
     // ID and start index of diagonal block A_kk
     const int columnsToRight = A.blockCountXY - j;
-    const int blockID =
-        blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
+    const int blockID = blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
 
     // Solve triangular system for diagonal block: b_j = Solve(A_jj, b_j)
     if (useGPU) {
       MatrixVectorOperationsMixed::triangularSolveBlockVector(
-          gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(),
-          A.blockByteOffsets.data(), j, blockID, false);
+          gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(), A.blockByteOffsets.data(), j, blockID,
+          false);
       gpuQueue.wait();
     } else {
       MatrixVectorOperationsMixed::triangularSolveBlockVector(
-          cpuQueue, A.matrixData.data(), b.rightHandSideData.data(),
-          A.precisionTypes.data(), A.blockByteOffsets.data(), j, blockID,
-          false);
+          cpuQueue, A.matrixData.data(), b.rightHandSideData.data(), A.precisionTypes.data(),
+          A.blockByteOffsets.data(), j, blockID, false);
       cpuQueue.wait();
     }
 
@@ -52,15 +51,14 @@ double TriangularSystemSolverMixed::solve() {
       // Update column below diagonal block
       if (useGPU) {
         MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
-            gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(),
-            A.blockByteOffsets.data(), j + 1, A.blockCountXY - (j + 1), j,
-            blockID, A.blockCountXY, false);
+            gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(), A.blockByteOffsets.data(), j + 1,
+            A.blockCountXY - (j + 1), j, blockID, A.blockCountXY, false);
         gpuQueue.wait();
       } else {
         MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
-            cpuQueue, A.matrixData.data(), b.rightHandSideData.data(),
-            A.precisionTypes.data(), A.blockByteOffsets.data(), j + 1,
-            A.blockCountXY - (j + 1), j, blockID, A.blockCountXY, false);
+            cpuQueue, A.matrixData.data(), b.rightHandSideData.data(), A.precisionTypes.data(),
+            A.blockByteOffsets.data(), j + 1, A.blockCountXY - (j + 1), j, blockID, A.blockCountXY,
+            false);
         cpuQueue.wait();
       }
     }
@@ -71,19 +69,18 @@ double TriangularSystemSolverMixed::solve() {
   for (int j = A.blockCountXY - 1; j >= 0; --j) {
     // ID and start index of diagonal block A_kk
     const int columnsToRight = A.blockCountXY - j;
-    const int blockID =
-        blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
+    const int blockID = blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
 
     // Solve triangular system for diagonal block: b_j = Solve(A_jj, b_j)
     if (useGPU) {
       MatrixVectorOperationsMixed::triangularSolveBlockVector(
-          gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(),
-          A.blockByteOffsets.data(), j, blockID, true);
+          gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(), A.blockByteOffsets.data(), j, blockID,
+          true);
       gpuQueue.wait();
     } else {
       MatrixVectorOperationsMixed::triangularSolveBlockVector(
-          cpuQueue, A.matrixData.data(), b.rightHandSideData.data(),
-          A.precisionTypes.data(), A.blockByteOffsets.data(), j, blockID, true);
+          cpuQueue, A.matrixData.data(), b.rightHandSideData.data(), A.precisionTypes.data(),
+          A.blockByteOffsets.data(), j, blockID, true);
       cpuQueue.wait();
     }
 
@@ -91,14 +88,13 @@ double TriangularSystemSolverMixed::solve() {
       // Update column below diagonal block
       if (useGPU) {
         MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
-            gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(),
-            A.blockByteOffsets.data(), 0, j, j, blockID, A.blockCountXY, true);
+            gpuQueue, A_gpu, b_gpu, A.precisionTypes.data(), A.blockByteOffsets.data(), 0, j, j,
+            blockID, A.blockCountXY, true);
         gpuQueue.wait();
       } else {
         MatrixVectorOperationsMixed::matrixVectorColumnUpdate(
-            cpuQueue, A.matrixData.data(), b.rightHandSideData.data(),
-            A.precisionTypes.data(), A.blockByteOffsets.data(), 0, j, j,
-            blockID, A.blockCountXY, true);
+            cpuQueue, A.matrixData.data(), b.rightHandSideData.data(), A.precisionTypes.data(),
+            A.blockByteOffsets.data(), 0, j, j, blockID, A.blockCountXY, true);
         cpuQueue.wait();
       }
     }
@@ -115,11 +111,9 @@ double TriangularSystemSolverMixed::solve() {
   }
 
   const auto end = std::chrono::steady_clock::now();
-  const double solveTime =
-      std::chrono::duration<double, std::milli>(end - start).count();
+  const double solveTime = std::chrono::duration<double, std::milli>(end - start).count();
 
-  std::cout << "Time to solve the triangular system: " << solveTime << "ms"
-            << std::endl;
+  std::cout << "Time to solve the triangular system: " << solveTime << "ms" << std::endl;
 
   if (conf::writeResult) {
     UtilityFunctions::writeResult(".", b.rightHandSideData);

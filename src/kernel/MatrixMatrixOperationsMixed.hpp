@@ -26,11 +26,9 @@ public:
    * system will be solved
    * @return a sycl event of the kernel execution
    */
-  static sycl::event triangularSolve(sycl::queue &queue, void *A,
-                                     int *precisionTypes,
-                                     std::size_t *blockByteOffsets, int blockID,
-                                     int blockRow, int blockStart,
-                                     int blockCount);
+  static sycl::event triangularSolve(sycl::queue &queue, void *A, int *precisionTypes,
+                                     std::size_t *blockByteOffsets, int blockID, int blockRow,
+                                     int blockStart, int blockCount);
 
   /**
    * This function solves a triangular System LB^T=B^T for a (sub) column of the
@@ -55,10 +53,9 @@ public:
    * system will be solved
    * @return a sycl event of the kernel execution
    */
-  static sycl::event
-  triangularSolve_optimizedGPU(sycl::queue &queue, void *A, int *precisionTypes,
-                               std::size_t *blockByteOffsets, int blockID,
-                               int blockRow, int blockStart, int blockCount);
+  static sycl::event triangularSolve_optimizedGPU(sycl::queue &queue, void *A, int *precisionTypes,
+                                                  std::size_t *blockByteOffsets, int blockID,
+                                                  int blockRow, int blockStart, int blockCount);
 
   /**
    * This function solves a triangular System LB^T=B^T for a (sub) column of the
@@ -83,10 +80,9 @@ public:
    * system will be solved
    * @return a sycl event of the kernel execution
    */
-  static sycl::event
-  triangularSolve_optimizedCPU(sycl::queue &queue, void *A, int *precisionTypes,
-                               std::size_t *blockByteOffsets, int blockID,
-                               int blockRow, int blockStart, int blockCount);
+  static sycl::event triangularSolve_optimizedCPU(sycl::queue &queue, void *A, int *precisionTypes,
+                                                  std::size_t *blockByteOffsets, int blockID,
+                                                  int blockRow, int blockStart, int blockCount);
 
   /**
    * This function performs a matrix-matrix multiplication that results into a
@@ -112,10 +108,10 @@ public:
    * matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event symmetricMatrixMatrixDiagonal(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+  static sycl::event symmetricMatrixMatrixDiagonal(sycl::queue &queue, void *A, int *precisionTypes,
+                                                   std::size_t *blockByteOffsets, int blockID,
+                                                   int blockRow, int blockStart, int blockCount,
+                                                   int blockCountXY);
 
   /**
    * This function performs a matrix-matrix multiplication that results into a
@@ -144,9 +140,8 @@ public:
    * @return a sycl event of the kernel execution
    */
   static sycl::event symmetricMatrixMatrixDiagonal_optimizedGPU(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+      sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets, int blockID,
+      int blockRow, int blockStart, int blockCount, int blockCountXY);
 
   /**
    * This function performs a matrix-matrix multiplication that results into a
@@ -175,9 +170,8 @@ public:
    * @return a sycl event of the kernel execution
    */
   static sycl::event symmetricMatrixMatrixDiagonal_optimizedCPU(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+      sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets, int blockID,
+      int blockRow, int blockStart, int blockCount, int blockCountXY);
 
   /**
    * This function performs the matrix-matrix multiplication step of the
@@ -202,11 +196,9 @@ public:
    * matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event matrixMatrixStep(sycl::queue &queue, void *A,
-                                      int *precisionTypes,
-                                      std::size_t *blockByteOffsets,
-                                      int blockID, int blockRow, int blockStart,
-                                      int blockCount, int blockCountXY);
+  static sycl::event matrixMatrixStep(sycl::queue &queue, void *A, int *precisionTypes,
+                                      std::size_t *blockByteOffsets, int blockID, int blockRow,
+                                      int blockStart, int blockCount, int blockCountXY);
 
   /**
    * This function performs the matrix-matrix multiplication step of the
@@ -234,10 +226,10 @@ public:
    * matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event matrixMatrixStep_optimizedGPU(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+  static sycl::event matrixMatrixStep_optimizedGPU(sycl::queue &queue, void *A, int *precisionTypes,
+                                                   std::size_t *blockByteOffsets, int blockID,
+                                                   int blockRow, int blockStart, int blockCount,
+                                                   int blockCountXY);
 
   /**
    * This function performs the matrix-matrix multiplication step of the
@@ -267,10 +259,11 @@ public:
    * matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event matrixMatrixStep_optimizedGPU2(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+  static sycl::event matrixMatrixStep_optimizedGPU2(sycl::queue &queue, void *A,
+                                                    int *precisionTypes,
+                                                    std::size_t *blockByteOffsets, int blockID,
+                                                    int blockRow, int blockStart, int blockCount,
+                                                    int blockCountXY);
 
   /**
    * This function performs the matrix-matrix multiplication step of the
@@ -301,10 +294,11 @@ public:
    * matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event matrixMatrixStep_optimizedGPU3(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+  static sycl::event matrixMatrixStep_optimizedGPU3(sycl::queue &queue, void *A,
+                                                    int *precisionTypes,
+                                                    std::size_t *blockByteOffsets, int blockID,
+                                                    int blockRow, int blockStart, int blockCount,
+                                                    int blockCountXY);
 
   /**
    * This function performs the matrix-matrix multiplication step of the
@@ -332,10 +326,10 @@ public:
    * matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event matrixMatrixStep_optimizedCPU(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+  static sycl::event matrixMatrixStep_optimizedCPU(sycl::queue &queue, void *A, int *precisionTypes,
+                                                   std::size_t *blockByteOffsets, int blockID,
+                                                   int blockRow, int blockStart, int blockCount,
+                                                   int blockCountXY);
 
   /**
    * This function performs the matrix-matrix multiplication step of the
@@ -365,10 +359,11 @@ public:
    * matrix
    * @return a sycl event of the kernel execution
    */
-  static sycl::event matrixMatrixStep_optimizedCPU2(
-      sycl::queue &queue, void *A, int *precisionTypes,
-      std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-      int blockCount, int blockCountXY);
+  static sycl::event matrixMatrixStep_optimizedCPU2(sycl::queue &queue, void *A,
+                                                    int *precisionTypes,
+                                                    std::size_t *blockByteOffsets, int blockID,
+                                                    int blockRow, int blockStart, int blockCount,
+                                                    int blockCountXY);
 };
 
 #endif // MATRIXMATRIXOPERATIONSMIXED_HPP

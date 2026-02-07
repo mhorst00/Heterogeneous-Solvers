@@ -22,8 +22,7 @@ public:
    * @param queue SYCL for allocating memory
    * @return the symmetric matrix object
    */
-  static SymmetricMatrixMixed parseSymmetricMatrix(std::string &path,
-                                                   sycl::queue &queue);
+  static SymmetricMatrixMixed parseSymmetricMatrix(std::string &path, sycl::queue &queue);
 
   /**
    * Parses data for the right-hand side
@@ -32,8 +31,7 @@ public:
    * @param queue SYCL for allocating memory
    * @return the right-hand side object
    */
-  static RightHandSide parseRightHandSide(std::string &path,
-                                          sycl::queue &queue);
+  static RightHandSide parseRightHandSide(std::string &path, sycl::queue &queue);
 
   /**
    * Splits a string containing matrix entries.
@@ -41,8 +39,7 @@ public:
    * @param rowString a string with floating point values seperated by ';'
    * @return a vector containing those entries
    */
-  static std::vector<conf::fp_type>
-  getRowValuesFromString(const std::string &rowString);
+  static std::vector<conf::fp_type> getRowValuesFromString(const std::string &rowString);
 
   /**
    * Writes the symmetric matrix into a txt file for debugging purposes.
@@ -51,8 +48,7 @@ public:
    * @param path output path
    * @param matrix the symmtetric matrix
    */
-  static void writeBlockedMatrix(const std::string &path,
-                                 const SymmetricMatrixMixed &matrix);
+  static void writeBlockedMatrix(const std::string &path, const SymmetricMatrixMixed &matrix);
 
   /**
    * Writes the symmetric matrix stored on the GPU into a txt file for debugging
@@ -62,8 +58,7 @@ public:
    * @param path output path
    * @param matrix the symmtetric matrix
    */
-  static void writeBlockedMatrixGPU(const std::string &path,
-                                    const SymmetricMatrixMixed &matrix,
+  static void writeBlockedMatrixGPU(const std::string &path, const SymmetricMatrixMixed &matrix,
                                     const unsigned char *matrix_gpu);
   /**
    * Writes the full symmetric matrix into a txt file for debugging purposes.
@@ -71,8 +66,7 @@ public:
    * @param path output path
    * @param matrix the symmtetric matrix
    */
-  static void writeFullMatrix(const std::string &path,
-                              const SymmetricMatrixMixed &matrix);
+  static void writeFullMatrix(const std::string &path, const SymmetricMatrixMixed &matrix);
 
 private:
   /**
