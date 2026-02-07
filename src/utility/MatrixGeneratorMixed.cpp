@@ -5,18 +5,19 @@
 
 using namespace sycl;
 
-SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
-    std::string &path, sycl::queue &queue, sycl::queue &queueGPU) {
-  std::cout << "-- generating mixed precision SPD matrix of size " << conf::N
-            << "x" << conf::N << std::endl;
+SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(std::string &path,
+                                                                  sycl::queue &queue,
+                                                                  sycl::queue &queueGPU) {
+  std::cout << "-- generating mixed precision SPD matrix of size " << conf::N << "x" << conf::N
+            << std::endl;
 
   // Build and allocate matrix memory
   SymmetricMatrixMixed matrix(conf::N, conf::matrixBlockSize, queueGPU);
 
   // Build temporary input data vector
   std::size_t nRegressors = 8;
-  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
-      trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
+  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> trainingInput{
+      usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
   std::size_t offset = nRegressors - 1;
   trainingInput.resize(conf::N + offset);
 
@@ -40,27 +41,20 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
   }
 
   std::vector<int> trainingPrecisionTypes;
-  trainingPrecisionTypes.resize(matrix.blockCountXY *
-                                (matrix.blockCountXY + 1) / 2);
+  trainingPrecisionTypes.resize(matrix.blockCountXY * (matrix.blockCountXY + 1) / 2);
   if (conf::qr) {
     // Calculate block precisions based on their ranks
-    std::cout << "-- computing qr decomposition to find block precisions"
-              << std::endl;
+    std::cout << "-- computing qr decomposition to find block precisions" << std::endl;
     trainingPrecisionTypes = RankFinder::compute_block_precisions(
         queue, trainingInput, conf::N, conf::matrixBlockSize, nRegressors);
   } else if (!conf::qr) {
     // Calculate block precision based on distance
     std::size_t continuous_index = 0;
     const int remaining_precision = (conf::fp16) ? 2 : 4;
-    for (std::size_t col = 0;
-         col < static_cast<std::size_t>(matrix.blockCountXY); ++col) {
-      for (std::size_t row = col;
-           row < static_cast<std::size_t>(matrix.blockCountXY); ++row) {
-        std::cout << "row: " << row
-                  << ", continuous_index: " << continuous_index << "\n";
+    for (std::size_t col = 0; col < static_cast<std::size_t>(matrix.blockCountXY); ++col) {
+      for (std::size_t row = col; row < static_cast<std::size_t>(matrix.blockCountXY); ++row) {
         const int distance = sycl::abs(row - col);
-        const double rel_distance =
-            static_cast<double>(distance) / matrix.blockCountXY;
+        const double rel_distance = static_cast<double>(distance) / matrix.blockCountXY;
         if (rel_distance < 0.1) {
           trainingPrecisionTypes[continuous_index] = 8;
         } else if (rel_distance < 0.95) {
@@ -79,8 +73,6 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
   std::size_t fp64_blocks = 0;
   std::size_t cumulative_offset = 0;
   for (std::size_t i = 0; i < trainingPrecisionTypes.size(); ++i) {
-    std::cout << "blockID: " << i << ", prec: " << trainingPrecisionTypes[i]
-              << ", calculated offset: " << cumulative_offset << "\n";
     matrix.blockByteOffsets[i] = cumulative_offset;
     matrix.precisionTypes[i] = trainingPrecisionTypes[i];
     switch (trainingPrecisionTypes[i]) {
@@ -94,8 +86,7 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
       fp64_blocks++;
       break;
     }
-    cumulative_offset += trainingPrecisionTypes[i] * conf::matrixBlockSize *
-                         conf::matrixBlockSize;
+    cumulative_offset += trainingPrecisionTypes[i] * conf::matrixBlockSize * conf::matrixBlockSize;
   }
 
   // Store block counts in data structure
@@ -106,45 +97,40 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
   // Resize matrix vector to byte size
   const std::size_t totalByteSize =
       matrix.blockByteOffsets[matrix.blockByteOffsets.size() - 1] +
-      matrix.precisionTypes[matrix.precisionTypes.size() - 1] *
-          matrix.blockSize * matrix.blockSize;
+      matrix.precisionTypes[matrix.precisionTypes.size() - 1] * matrix.blockSize * matrix.blockSize;
   matrix.allocate(totalByteSize);
 
-  const std::size_t block_elements =
-      conf::matrixBlockSize * conf::matrixBlockSize;
+  const std::size_t block_elements = conf::matrixBlockSize * conf::matrixBlockSize;
 
   // Calculate and print size savings for mixed precision
-  const std::size_t fp16_bytes =
-      fp16_blocks * block_elements * sizeof(sycl::half);
+  const std::size_t fp16_bytes = fp16_blocks * block_elements * sizeof(sycl::half);
   const std::size_t fp32_bytes = fp32_blocks * block_elements * sizeof(float);
   const std::size_t fp64_bytes = fp64_blocks * block_elements * sizeof(double);
-  const std::size_t saved_bytes = (fp16_blocks + fp32_blocks + fp64_blocks) *
-                                      block_elements * sizeof(conf::fp_type) -
-                                  totalByteSize;
+  const std::size_t saved_bytes =
+      (fp16_blocks + fp32_blocks + fp64_blocks) * block_elements * sizeof(conf::fp_type) -
+      totalByteSize;
 
   std::cout << "-- mixed precision memory usage:\n";
   if (conf::fp16) {
-    std::cout << "---- " << fp16_blocks << " FP16 blocks using "
-              << fp16_bytes / 1024 / 1024 << " MB\n";
+    std::cout << "---- " << fp16_blocks << " FP16 blocks using " << fp16_bytes / 1024 / 1024
+              << " MB\n";
   }
-  std::cout << "---- " << fp32_blocks << " FP32 blocks using "
-            << fp32_bytes / 1024 / 1024 << " MB\n";
-  std::cout << "---- " << fp64_blocks << " FP64 blocks using "
-            << fp64_bytes / 1024 / 1024 << " MB\n";
-  std::cout << "---- mixed precision saving a total of "
-            << saved_bytes / 1024 / 1024 << " MB\n";
+  std::cout << "---- " << fp32_blocks << " FP32 blocks using " << fp32_bytes / 1024 / 1024
+            << " MB\n";
+  std::cout << "---- " << fp64_blocks << " FP64 blocks using " << fp64_bytes / 1024 / 1024
+            << " MB\n";
+  std::cout << "---- mixed precision saving a total of " << saved_bytes / 1024 / 1024 << " MB\n";
 
   // block count of all columns except the first one
-  const int referenceBlockCount =
-      (matrix.blockCountXY * (matrix.blockCountXY - 1)) / 2;
+  const int referenceBlockCount = (matrix.blockCountXY * (matrix.blockCountXY - 1)) / 2;
 
   // Prepare memory pointers
   unsigned char *matrixBytes = matrix.matrixData.data();
   conf::fp_type *trainingInputData = trainingInput.data();
 
   std::size_t N = conf::N;
-  for (std::size_t i_block = 0;
-       i_block < static_cast<std::size_t>(matrix.blockCountXY); ++i_block) {
+  for (std::size_t i_block = 0; i_block < static_cast<std::size_t>(matrix.blockCountXY);
+       ++i_block) {
     for (std::size_t j_block = 0; j_block <= i_block; j_block++) {
       // number of blocks in row to the right (if matrix would be full)
       const int block_j_inv = matrix.blockCountXY - (j_block + 1);
@@ -169,113 +155,91 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
 
       if (blockPrecision == 2) {
         queue.submit([&](handler &h) {
-          h.parallel_for(
-              range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
-                // Add correct typing to both arrays according to block
-                // index
-                sycl::half *matrixDataTyped =
-                    reinterpret_cast<sycl::half *>(matrixBytes + byteOffset);
-                const unsigned int i_local = idx[0];
-                const unsigned int j_local = idx[1];
-                const unsigned long i_global =
-                    matrixBlockSize * i_block + i_local;
-                const unsigned long j_global =
-                    matrixBlockSize * j_block + j_local;
-                if (i_global >= N || j_global >= N) {
-                  return;
-                }
-                sycl::half distance = 0.0;
-                for (unsigned int k = 0; k < nRegressors; k++) {
-                  const sycl::half tmp = trainingInputData[i_global + k] -
-                                         trainingInputData[j_global + k];
-                  distance += tmp * tmp;
-                }
-                sycl::half covarianceFunction =
-                    verticalLengthscale *
-                    sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
+          h.parallel_for(range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
+            // Add correct typing to both arrays according to block
+            // index
+            sycl::half *matrixDataTyped = reinterpret_cast<sycl::half *>(matrixBytes + byteOffset);
+            const unsigned int i_local = idx[0];
+            const unsigned int j_local = idx[1];
+            const unsigned long i_global = matrixBlockSize * i_block + i_local;
+            const unsigned long j_global = matrixBlockSize * j_block + j_local;
+            if (i_global >= N || j_global >= N) {
+              return;
+            }
+            sycl::half distance = 0.0;
+            for (unsigned int k = 0; k < nRegressors; k++) {
+              const sycl::half tmp =
+                  trainingInputData[i_global + k] - trainingInputData[j_global + k];
+              distance += tmp * tmp;
+            }
+            sycl::half covarianceFunction =
+                verticalLengthscale * sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
 
-                if (i_global == j_global) {
-                  covarianceFunction += noiseVariance;
-                }
-                matrixDataTyped[i_local * matrixBlockSize + j_local] =
-                    covarianceFunction;
-              });
+            if (i_global == j_global) {
+              covarianceFunction += noiseVariance;
+            }
+            matrixDataTyped[i_local * matrixBlockSize + j_local] = covarianceFunction;
+          });
         });
 
       } else if (blockPrecision == 4) {
         queue.submit([&](handler &h) {
-          h.parallel_for(
-              range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
-                // Add correct typing to both arrays according to block
-                // index
-                float *matrixDataTyped =
-                    reinterpret_cast<float *>(matrixBytes + byteOffset);
-                const unsigned int i_local = idx[0];
-                const unsigned int j_local = idx[1];
-                const unsigned long i_global =
-                    matrixBlockSize * i_block + i_local;
-                const unsigned long j_global =
-                    matrixBlockSize * j_block + j_local;
-                if (i_global >= N || j_global >= N) {
-                  return;
-                }
-                float distance = 0.0;
-                for (unsigned int k = 0; k < nRegressors; k++) {
-                  const float tmp = trainingInputData[i_global + k] -
-                                    trainingInputData[j_global + k];
-                  distance += tmp * tmp;
-                }
-                const float tmp = sycl::exp(
-                    -0.5f / static_cast<float>((lengthscale * lengthscale)) *
-                    distance);
-                float covarianceFunction =
-                    static_cast<float>(verticalLengthscale) * tmp;
+          h.parallel_for(range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
+            // Add correct typing to both arrays according to block
+            // index
+            float *matrixDataTyped = reinterpret_cast<float *>(matrixBytes + byteOffset);
+            const unsigned int i_local = idx[0];
+            const unsigned int j_local = idx[1];
+            const unsigned long i_global = matrixBlockSize * i_block + i_local;
+            const unsigned long j_global = matrixBlockSize * j_block + j_local;
+            if (i_global >= N || j_global >= N) {
+              return;
+            }
+            float distance = 0.0;
+            for (unsigned int k = 0; k < nRegressors; k++) {
+              const float tmp = trainingInputData[i_global + k] - trainingInputData[j_global + k];
+              distance += tmp * tmp;
+            }
+            const float tmp =
+                sycl::exp(-0.5f / static_cast<float>((lengthscale * lengthscale)) * distance);
+            float covarianceFunction = static_cast<float>(verticalLengthscale) * tmp;
 
-                if (i_global == j_global) {
-                  covarianceFunction += static_cast<float>(noiseVariance);
-                }
-                matrixDataTyped[i_local * matrixBlockSize + j_local] =
-                    covarianceFunction;
-              });
+            if (i_global == j_global) {
+              covarianceFunction += static_cast<float>(noiseVariance);
+            }
+            matrixDataTyped[i_local * matrixBlockSize + j_local] = covarianceFunction;
+          });
         });
 
       } else if (blockPrecision == 8) {
         queue.submit([&](handler &h) {
-          h.parallel_for(
-              range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
-                // Add correct typing to both arrays according to block
-                // index
-                double *matrixDataTyped =
-                    reinterpret_cast<double *>(matrixBytes + byteOffset);
-                const unsigned int i_local = idx[0];
-                const unsigned int j_local = idx[1];
-                const unsigned long i_global =
-                    matrixBlockSize * i_block + i_local;
-                const unsigned long j_global =
-                    matrixBlockSize * j_block + j_local;
-                if (i_global >= N || j_global >= N) {
-                  return;
-                }
-                double distance = 0.0;
-                for (unsigned int k = 0; k < nRegressors; k++) {
-                  const double tmp = trainingInputData[i_global + k] -
-                                     trainingInputData[j_global + k];
-                  distance += tmp * tmp;
-                }
-                double covarianceFunction =
-                    verticalLengthscale *
-                    sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
+          h.parallel_for(range<2>(matrixBlockSize, matrixBlockSize), [=](id<2> idx) {
+            // Add correct typing to both arrays according to block
+            // index
+            double *matrixDataTyped = reinterpret_cast<double *>(matrixBytes + byteOffset);
+            const unsigned int i_local = idx[0];
+            const unsigned int j_local = idx[1];
+            const unsigned long i_global = matrixBlockSize * i_block + i_local;
+            const unsigned long j_global = matrixBlockSize * j_block + j_local;
+            if (i_global >= N || j_global >= N) {
+              return;
+            }
+            double distance = 0.0;
+            for (unsigned int k = 0; k < nRegressors; k++) {
+              const double tmp = trainingInputData[i_global + k] - trainingInputData[j_global + k];
+              distance += tmp * tmp;
+            }
+            double covarianceFunction =
+                verticalLengthscale * sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
 
-                if (i_global == j_global) {
-                  covarianceFunction += noiseVariance;
-                }
-                matrixDataTyped[i_local * matrixBlockSize + j_local] =
-                    covarianceFunction;
-              });
+            if (i_global == j_global) {
+              covarianceFunction += noiseVariance;
+            }
+            matrixDataTyped[i_local * matrixBlockSize + j_local] = covarianceFunction;
+          });
         });
 
       } else {
-        std::cout << "Block precision: " << blockPrecision << "\n";
         throw std::runtime_error("Block precision not supported!");
       }
     }
@@ -286,21 +250,22 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(
   return matrix;
 }
 
-void MatrixGeneratorMixed::generateTestKernelMatrixMixed(
-    std::string &path_train, std::string &path_test, sycl::queue &queue,
-    sycl::queue &queueGPU, conf::fp_type *K_star) {
-  std::cout << "-- generating Kernel matrix of size " << conf::N << "x"
-            << conf::N_test << std::endl;
+void MatrixGeneratorMixed::generateTestKernelMatrixMixed(std::string &path_train,
+                                                         std::string &path_test, sycl::queue &queue,
+                                                         sycl::queue &queueGPU,
+                                                         conf::fp_type *K_star) {
+  std::cout << "-- generating Kernel matrix of size " << conf::N << "x" << conf::N_test
+            << std::endl;
 
   constexpr std::size_t nRegressors = 8;
   constexpr std::size_t offset = nRegressors - 1;
 
-  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
-      trainingInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
+  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> trainingInput{
+      usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
   trainingInput.resize(conf::N + offset);
 
-  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>>
-      testInput{usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
+  std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> testInput{
+      usm_allocator<conf::fp_type, usm::alloc::host>(queueGPU)};
   testInput.resize(conf::N_test + offset);
 
   readInputVector(path_train, trainingInput, conf::N, offset);
@@ -329,8 +294,7 @@ void MatrixGeneratorMixed::generateTestKernelMatrixMixed(
         distance += tmp * tmp;
       }
       const double covarianceFunction =
-          verticalLengthscale *
-          sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
+          verticalLengthscale * sycl::exp(-0.5 / (lengthscale * lengthscale) * distance);
 
       K_star[static_cast<std::size_t>(j) * static_cast<std::size_t>(N) +
              static_cast<std::size_t>(i)] = covarianceFunction;
@@ -341,8 +305,7 @@ void MatrixGeneratorMixed::generateTestKernelMatrixMixed(
 
 void MatrixGeneratorMixed::readInputVector(
     std::string &path,
-    std::vector<conf::fp_type,
-                sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
+    std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
         &dataVector,
     int N, int offset) {
   std::ifstream dataInputStream(path);

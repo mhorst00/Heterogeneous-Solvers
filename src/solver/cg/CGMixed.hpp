@@ -17,24 +17,21 @@ using namespace sycl;
  */
 class CGMixed {
 public:
-  CGMixed(SymmetricMatrixMixed &A, RightHandSide &b, queue &cpuQueue,
-          queue &gpuQueue, std::shared_ptr<LoadBalancer> loadBalancer);
+  CGMixed(SymmetricMatrixMixed &A, RightHandSide &b, queue &cpuQueue, queue &gpuQueue,
+          std::shared_ptr<LoadBalancer> loadBalancer);
 
   SymmetricMatrixMixed &A; /// SPD matrix A
   RightHandSide &b;        /// right hand side b
 
-  std::vector<conf::fp_type,
-              sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
+  std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
       x; /// result vector of x of the linear system Ax = b
 
   queue &cpuQueue; /// SYCL queue for the CPU device
   queue &gpuQueue; /// SYCL queue for the GPU device
 
-  std::shared_ptr<LoadBalancer>
-      loadBalancer; /// load balancer to dynamically or statically determine the
-                    /// CPU/GPU split
-  MetricsTracker
-      metricsTracker; /// metrics tracker that tracks various runtime metrics
+  std::shared_ptr<LoadBalancer> loadBalancer; /// load balancer to dynamically or statically
+                                              /// determine the CPU/GPU split
+  MetricsTracker metricsTracker; /// metrics tracker that tracks various runtime metrics
 
   void solveHeterogeneous(); /// main method that starts the solver
 

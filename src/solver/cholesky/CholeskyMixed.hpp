@@ -25,11 +25,9 @@ public:
   queue &cpuQueue; /// SYCL queue for the CPU device
   queue &gpuQueue; /// SYCL queue for the GPU device
 
-  std::shared_ptr<LoadBalancer>
-      loadBalancer; /// load balancer to dynamically or statically determine the
-                    /// CPU/GPU split
-  MetricsTracker
-      metricsTracker; /// metrics tracker that tracks various runtime metrics
+  std::shared_ptr<LoadBalancer> loadBalancer; /// load balancer to dynamically or statically
+                                              /// determine the CPU/GPU split
+  MetricsTracker metricsTracker; /// metrics tracker that tracks various runtime metrics
 
   double gpuProportion; /// current GPU proportion
 
@@ -62,8 +60,7 @@ private:
     std::chrono::time_point<std::chrono::steady_clock> startTriangularSolve;
     std::chrono::time_point<std::chrono::steady_clock> endTriangularSolve;
 
-    std::chrono::time_point<std::chrono::steady_clock>
-        startMatrixMatrixDiagonal;
+    std::chrono::time_point<std::chrono::steady_clock> startMatrixMatrixDiagonal;
     std::chrono::time_point<std::chrono::steady_clock> endMatrixMatrixDiagonal;
 
     std::chrono::time_point<std::chrono::steady_clock> startMatrixMatrix;
@@ -122,8 +119,7 @@ private:
    * @param blockStartIndexDiagBlock start index of the diagonal block in the
    * data structure
    */
-  void choleskyUpdateCurrentDiagonalBlock(std::size_t blockSizeBytes,
-                                          int blockPrecision, int k,
+  void choleskyUpdateCurrentDiagonalBlock(std::size_t blockSizeBytes, int blockPrecision, int k,
                                           std::size_t blockOffsetDiagBlock);
 
   /**

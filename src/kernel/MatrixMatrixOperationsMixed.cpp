@@ -3,8 +3,8 @@
 
 using namespace sycl;
 // Helper functions (must be device-callable)
-inline conf::fp_type read_element(unsigned char *data, std::size_t offset,
-                                  std::size_t idx, const int prec) {
+inline conf::fp_type read_element(unsigned char *data, std::size_t offset, std::size_t idx,
+                                  const int prec) {
   if (prec == 2) {
     auto *ptr = reinterpret_cast<sycl::half *>(data + offset);
     return static_cast<conf::fp_type>(ptr[idx]);
@@ -18,9 +18,8 @@ inline conf::fp_type read_element(unsigned char *data, std::size_t offset,
   return conf::fp_type{0};
 }
 
-inline void write_element(unsigned char *data, std::size_t offset,
-                          std::size_t idx, conf::fp_type value,
-                          const int prec) {
+inline void write_element(unsigned char *data, std::size_t offset, std::size_t idx,
+                          conf::fp_type value, const int prec) {
   if (prec == 2) {
     auto *ptr = reinterpret_cast<sycl::half *>(data + offset);
     ptr[idx] = static_cast<sycl::half>(value);
@@ -34,12 +33,10 @@ inline void write_element(unsigned char *data, std::size_t offset,
 }
 
 sycl::event MatrixMatrixOperationsMixed::triangularSolve(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
+    const int blockID, const int blockRow, const int blockStart, const int blockCount) {
   // one work-group per rhs
-  const range globalRange(blockCount * conf::matrixBlockSize,
-                          conf::matrixBlockSize);
+  const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
   const range localRange(conf::matrixBlockSize, 1);
   const auto kernelRange = nd_range{globalRange, localRange};
 
@@ -56,37 +53,32 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve(
       const int group_id_j = nd_item.get_group().get_group_id(1);
 
       // block in the matrix where the results are written
-      const std::size_t block_id_B =
-          blockID + (blockStart - blockRow) + group_id_i;
+      const std::size_t block_id_B = blockID + (blockStart - blockRow) + group_id_i;
       const std::size_t blockStartOffset_B = blockByteOffsets[block_id_B];
       const int blockPrec_B = precisionTypes[block_id_B];
 
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
         // b_k = b_k/a_kk
         const conf::fp_type b_k =
-            read_element(ABytes, blockStartOffset_B,
-                         group_id_j * matrixBlockSize + k, blockPrec_B) /
-            read_element(ABytes, blockStartOffset_L, k * matrixBlockSize + k,
-                         blockPrec);
+            read_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + k,
+                         blockPrec_B) /
+            read_element(ABytes, blockStartOffset_L, k * matrixBlockSize + k, blockPrec);
 
         nd_item.barrier();
 
         if (local_i == 0) {
-          write_element(ABytes, blockStartOffset_B,
-                        group_id_j * matrixBlockSize + k, b_k, blockPrec_B);
+          write_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + k, b_k,
+                        blockPrec_B);
         }
 
         if (local_i > k) {
           // b_i = b_i - a_ik*b_k
           conf::fp_type val =
-              read_element(ABytes, blockStartOffset_B,
-                           group_id_j * matrixBlockSize + local_i,
+              read_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + local_i,
                            blockPrec_B) -
-              read_element(ABytes, blockStartOffset_L,
-                           local_i * matrixBlockSize + k, blockPrec) *
+              read_element(ABytes, blockStartOffset_L, local_i * matrixBlockSize + k, blockPrec) *
                   b_k;
-          write_element(ABytes, blockStartOffset_B,
-                        group_id_j * matrixBlockSize + local_i, val,
+          write_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + local_i, val,
                         blockPrec_B);
         }
 
@@ -99,12 +91,10 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve(
 }
 
 sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
+    const int blockID, const int blockRow, const int blockStart, const int blockCount) {
   // one work-group per rhs
-  const range globalRange(blockCount * conf::matrixBlockSize,
-                          conf::matrixBlockSize);
+  const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
   const range localRange(conf::matrixBlockSize, 1);
   const auto kernelRange = nd_range{globalRange, localRange};
 
@@ -123,21 +113,19 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
       const int group_id_j = nd_item.get_group().get_group_id(1);
 
       // block in the matrix where the results are written
-      const std::size_t block_id_B =
-          blockID + (blockStart - blockRow) + group_id_i;
+      const std::size_t block_id_B = blockID + (blockStart - blockRow) + group_id_i;
       const std::size_t blockStartOffset_B = blockByteOffsets[block_id_B];
       const int blockPrec_B = precisionTypes[block_id_B];
 
       // inverse of diagonal value in lower triangular matrix
       const conf::fp_type diagonal_ii =
-          1.0 / read_element(ABytes, blockStartOffset_L,
-                             local_i * matrixBlockSize + local_i, blockPrec_L);
+          1.0 / read_element(ABytes, blockStartOffset_L, local_i * matrixBlockSize + local_i,
+                             blockPrec_L);
 
       // current value of the position in the column that will be updated by
       // the work-item
-      conf::fp_type value =
-          read_element(ABytes, blockStartOffset_B,
-                       group_id_j * matrixBlockSize + local_i, blockPrec_B);
+      conf::fp_type value = read_element(ABytes, blockStartOffset_B,
+                                         group_id_j * matrixBlockSize + local_i, blockPrec_B);
 
       // b_0 has to available for all work-items in the next iteration
       if (local_i == 0) {
@@ -149,10 +137,9 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
         if (local_i > k) {
           // b_i = b_i - a_ik*b_k
-          value =
-              value - read_element(ABytes, blockStartOffset_L,
-                                   local_i * matrixBlockSize + k, blockPrec_L) *
-                          local_column[k];
+          value = value - read_element(ABytes, blockStartOffset_L, local_i * matrixBlockSize + k,
+                                       blockPrec_L) *
+                              local_column[k];
           if (local_i == k + 1) {
             // make b_{k+1} available to all work-items for the next iteration
             local_column[local_i] = value * diagonal_ii;
@@ -165,9 +152,8 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
 
       // store final value in global memory, also works for last entry since
       // value * diagonal_ii is recomputed
-      write_element(ABytes, blockStartOffset_B,
-                    group_id_j * matrixBlockSize + local_i, value * diagonal_ii,
-                    blockPrec_B);
+      write_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + local_i,
+                    value * diagonal_ii, blockPrec_B);
     });
   });
 
@@ -175,9 +161,8 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
 }
 
 sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
+    const int blockID, const int blockRow, const int blockStart, const int blockCount) {
   // one work-group per rhs
   const range globalRange(blockCount, conf::matrixBlockSize);
 
@@ -193,33 +178,29 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
       const int group_id_j = id[1];
 
       // block in the matrix where the results are written
-      const std::size_t block_id_B =
-          blockID + (blockStart - blockRow) + group_id_i;
+      const std::size_t block_id_B = blockID + (blockStart - blockRow) + group_id_i;
       const std::size_t blockStartOffset_B = blockByteOffsets[block_id_B];
       const int blockPrec_B = precisionTypes[block_id_B];
 
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
         // b_k = b_k/a_kk
         const conf::fp_type b_k =
-            read_element(ABytes, blockStartOffset_B,
-                         group_id_j * matrixBlockSize + k, blockPrec_B) /
-            read_element(ABytes, blockStartOffset_L, k * matrixBlockSize + k,
-                         blockPrec_L);
+            read_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + k,
+                         blockPrec_B) /
+            read_element(ABytes, blockStartOffset_L, k * matrixBlockSize + k, blockPrec_L);
 
-        write_element(ABytes, blockStartOffset_B,
-                      group_id_j * matrixBlockSize + k, b_k, blockPrec_B);
+        write_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + k, b_k,
+                      blockPrec_B);
 
 #pragma clang loop vectorize(enable) unroll(enable)
         for (int j = k + 1; j < static_cast<int>(matrixBlockSize); ++j) {
           // b_i = b_i - a_ik*b_k
           conf::fp_type val =
-              read_element(ABytes, blockStartOffset_B,
-                           group_id_j * matrixBlockSize + j, blockPrec_B) -
-              read_element(ABytes, blockStartOffset_L, j * matrixBlockSize + k,
-                           blockPrec_L) *
-                  b_k;
-          write_element(ABytes, blockStartOffset_B,
-                        group_id_j * matrixBlockSize + j, val, blockPrec_B);
+              read_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + j,
+                           blockPrec_B) -
+              read_element(ABytes, blockStartOffset_L, j * matrixBlockSize + k, blockPrec_L) * b_k;
+          write_element(ABytes, blockStartOffset_B, group_id_j * matrixBlockSize + j, val,
+                        blockPrec_B);
         }
       }
     });
@@ -229,9 +210,9 @@ sycl::event MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
 }
 
 sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount, const int blockCountXY) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
+    const int blockID, const int blockRow, const int blockStart, const int blockCount,
+    const int blockCountXY) {
   const int wgSize_xy = conf::workGroupSizeGEMM_xy;
   if (conf::matrixBlockSize % wgSize_xy != 0) {
     throw std::runtime_error("xy work-group dimension for matrix "
@@ -240,8 +221,7 @@ sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
 
   const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgSize_xy;
 
-  const range globalRange(blockCount * conf::matrixBlockSize,
-                          conf::matrixBlockSize);
+  const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
   const range localRange(wgSize_xy, wgSize_xy);
   const auto kernelRange = nd_range{globalRange, localRange};
 
@@ -260,8 +240,7 @@ sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
       const int group_id_j = nd_item.get_group().get_group_id(1);
 
       // block offset of current work group in column direction
-      const int columnOffset =
-          (blockStart - blockRow) + (group_id_i / wgCount_xy);
+      const int columnOffset = (blockStart - blockRow) + (group_id_i / wgCount_xy);
 
       // x/y block coordinate of the diagonal block processed by this work-group
       const int blockXYIndexDiagonal = blockRow + columnOffset;
@@ -273,14 +252,12 @@ sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
       const int columnBlocksToRight = (block_j_inv * (block_j_inv + 1)) / 2;
 
       // id of block in the matrix data structure for symmetric matrices
-      const int blockID_wg_diag =
-          blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
+      const int blockID_wg_diag = blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
 
       // id of the column block used in the matrix-matrix multiplication
       const int blockID_wg_col = blockID + columnOffset;
 
-      const std::size_t block_wg_diag_offset =
-          blockByteOffsets[blockID_wg_diag];
+      const std::size_t block_wg_diag_offset = blockByteOffsets[blockID_wg_diag];
       const std::size_t block_wg_col_offset = blockByteOffsets[blockID_wg_col];
 
       const std::size_t block_wg_diag_prec = precisionTypes[blockID_wg_diag];
@@ -297,15 +274,14 @@ sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
         // perform update for lower triangle of the diagonal
         for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
           // B_diag = B_diag - B_col * B_col^T
-          conf::fp_type val =
-              read_element(ABytes, block_wg_diag_offset,
-                           i * matrixBlockSize + j, block_wg_diag_prec) -
-              read_element(ABytes, block_wg_col_offset, i * matrixBlockSize + k,
-                           block_wg_col_prec) *
-                  read_element(ABytes, block_wg_col_offset,
-                               j * matrixBlockSize + k, block_wg_col_prec);
-          write_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j,
-                        val, block_wg_diag_prec);
+          conf::fp_type val = read_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j,
+                                           block_wg_diag_prec) -
+                              read_element(ABytes, block_wg_col_offset, i * matrixBlockSize + k,
+                                           block_wg_col_prec) *
+                                  read_element(ABytes, block_wg_col_offset, j * matrixBlockSize + k,
+                                               block_wg_col_prec);
+          write_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j, val,
+                        block_wg_diag_prec);
         }
       }
     });
@@ -314,11 +290,9 @@ sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
   return event;
 }
 
-sycl::event
-MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-    int blockCount, int blockCountXY) {
+sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets, int blockID,
+    int blockRow, int blockStart, int blockCount, int blockCountXY) {
   const int wgSize_xy = conf::workGroupSizeGEMM_xy;
   if (conf::matrixBlockSize % wgSize_xy != 0) {
     throw std::runtime_error("xy work-group dimension for matrix "
@@ -327,8 +301,7 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
 
   const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgSize_xy;
 
-  const range globalRange(blockCount * conf::matrixBlockSize,
-                          conf::matrixBlockSize);
+  const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
   const range localRange(wgSize_xy, wgSize_xy);
   const auto kernelRange = nd_range{globalRange, localRange};
 
@@ -340,10 +313,8 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
   const int referenceBlockCount = (blockCountXY * (blockCountXY - 1)) / 2;
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
-    auto local_tile_A =
-        local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
-    auto local_tile_B =
-        local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
+    auto local_tile_A = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
+    auto local_tile_B = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
 
     h.parallel_for(kernelRange, [=](auto &nd_item) {
       const int local_i = nd_item.get_local_id(0);
@@ -352,8 +323,7 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
       const int group_id_j = nd_item.get_group().get_group_id(1);
 
       // block offset of current work group in column direction
-      const int columnOffset =
-          (blockStart - blockRow) + (group_id_i / wgCount_xy);
+      const int columnOffset = (blockStart - blockRow) + (group_id_i / wgCount_xy);
 
       // x/y block coordinate of the diagonal block processed by this work-group
       const int blockXYIndexDiagonal = blockRow + columnOffset;
@@ -365,15 +335,13 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
       const int columnBlocksToRight = (block_j_inv * (block_j_inv + 1)) / 2;
 
       // id of block in the matrix data structure for symmetric matrices
-      const int blockID_wg_diag =
-          blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
+      const int blockID_wg_diag = blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
 
       // id of the column block used in the matrix-matrix multiplication
       const int blockID_wg_col = blockID + columnOffset;
 
       // start indices of blocks involved in the syrk update
-      const std::size_t block_wg_diag_offset =
-          blockByteOffsets[blockID_wg_diag];
+      const std::size_t block_wg_diag_offset = blockByteOffsets[blockID_wg_diag];
       const std::size_t block_wg_col_offset = blockByteOffsets[blockID_wg_col];
 
       const std::size_t block_wg_diag_prec = precisionTypes[blockID_wg_diag];
@@ -392,8 +360,8 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
       // load initial value for result
       conf::fp_type value = 0.0;
       if (i >= j) {
-        value = read_element(ABytes, block_wg_diag_offset,
-                             i * matrixBlockSize + j, block_wg_diag_prec);
+        value =
+            read_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j, block_wg_diag_prec);
       }
 
       // perform update for lower triangle of the diagonal
@@ -402,14 +370,14 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
         // memory
         if (i >= j || group_mod_count_i == group_mod_count_j) {
           // normal block
-          local_tile_A[local_i][local_j] = read_element(
-              ABytes, block_wg_col_offset,
-              i * matrixBlockSize + t * wgSize_xy + local_j, block_wg_col_prec);
+          local_tile_A[local_i][local_j] =
+              read_element(ABytes, block_wg_col_offset,
+                           i * matrixBlockSize + t * wgSize_xy + local_j, block_wg_col_prec);
 
           // transposed block
-          local_tile_B[local_i][local_j] = read_element(
-              ABytes, block_wg_col_offset,
-              j * matrixBlockSize + t * wgSize_xy + local_i, block_wg_col_prec);
+          local_tile_B[local_i][local_j] =
+              read_element(ABytes, block_wg_col_offset,
+                           j * matrixBlockSize + t * wgSize_xy + local_i, block_wg_col_prec);
         }
         group_barrier(nd_item.get_group(), memory_scope::work_group);
 
@@ -422,8 +390,8 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
         group_barrier(nd_item.get_group(), memory_scope::work_group);
       }
       if (i >= j) {
-        write_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j,
-                      value, block_wg_diag_prec);
+        write_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j, value,
+                      block_wg_diag_prec);
       }
     });
   });
@@ -431,13 +399,11 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
   return event;
 }
 
-sycl::event
-MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount, const int blockCountXY) {
-  const range globalRange(blockCount * conf::matrixBlockSize,
-                          conf::matrixBlockSize);
+sycl::event MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
+    const int blockID, const int blockRow, const int blockStart, const int blockCount,
+    const int blockCountXY) {
+  const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
 
   const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
@@ -466,15 +432,13 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
       const int columnBlocksToRight = (block_j_inv * (block_j_inv + 1)) / 2;
 
       // id of block in the matrix data structure for symmetric matrices
-      const int blockID_wg_diag =
-          blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
+      const int blockID_wg_diag = blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
 
       // id of the column block used in the matrix-matrix multiplication
       const int blockID_wg_col = blockID + columnOffset;
 
       // start indices of blocks involved in the syrk update
-      const std::size_t block_wg_diag_offset =
-          blockByteOffsets[blockID_wg_diag];
+      const std::size_t block_wg_diag_offset = blockByteOffsets[blockID_wg_diag];
       const std::size_t block_wg_col_offset = blockByteOffsets[blockID_wg_col];
 
       const std::size_t block_wg_diag_prec = precisionTypes[blockID_wg_diag];
@@ -485,20 +449,18 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
 
       if (i >= j) {
         conf::fp_type value =
-            read_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j,
-                         block_wg_diag_prec);
+            read_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j, block_wg_diag_prec);
         // perform update for lower triangle of the diagonal
 #pragma clang loop vectorize(enable) unroll(enable)
         for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
           // B_diag = B_diag - B_col * B_col^T
-          value = value -
-                  read_element(ABytes, block_wg_col_offset,
-                               i * matrixBlockSize + k, block_wg_col_prec) *
-                      read_element(ABytes, block_wg_col_offset,
-                                   j * matrixBlockSize + k, block_wg_col_prec);
+          value = value - read_element(ABytes, block_wg_col_offset, i * matrixBlockSize + k,
+                                       block_wg_col_prec) *
+                              read_element(ABytes, block_wg_col_offset, j * matrixBlockSize + k,
+                                           block_wg_col_prec);
         }
-        write_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j,
-                      value, block_wg_diag_prec);
+        write_element(ABytes, block_wg_diag_offset, i * matrixBlockSize + j, value,
+                      block_wg_diag_prec);
       }
     });
   });
@@ -506,10 +468,11 @@ MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
   return event;
 }
 
-sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount, const int blockCountXY) {
+sycl::event
+MatrixMatrixOperationsMixed::matrixMatrixStep(sycl::queue &queue, void *A, int *precisionTypes,
+                                              std::size_t *blockByteOffsets, const int blockID,
+                                              const int blockRow, const int blockStart,
+                                              const int blockCount, const int blockCountXY) {
   const int wgSize_xy = conf::workGroupSizeGEMM_xy;
   if (conf::matrixBlockSize % wgSize_xy != 0) {
     throw std::runtime_error("xy work-group dimension for matrix "
@@ -527,13 +490,11 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep(
   const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
   const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
   const int lowerBlockCount =
-      totalBlockCount -
-      ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+      totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
   const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
-  const range globalRange(wgCount_xy * wgSize_xy,
-                          wgCount * wgCount_xy * wgSize_xy);
+  const range globalRange(wgCount_xy * wgSize_xy, wgCount * wgCount_xy * wgSize_xy);
   const range localRange(wgSize_xy, wgSize_xy);
   const auto kernelRange = nd_range{globalRange, localRange};
 
@@ -564,9 +525,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep(
       // work-group
       const int wgBlockID_A =
           blockID + blockCountXY - blockRow + columnID + 1 +
-          (totalBlockCount -
-           ((blockCountXY - blockRow - 2 - columnID) *
-            (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+          (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                              (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
           rowID - columnID;
 
       const int wgBlockID_B = blockID + rowID + 2;
@@ -590,14 +550,10 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep(
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
         // A = A - B * C^T
         conf::fp_type value =
-            read_element(ABytes, blockOffsetA, i * matrixBlockSize + j,
-                         blockPrecA) -
-            read_element(ABytes, blockOffsetB, i * matrixBlockSize + k,
-                         blockPrecB) *
-                read_element(ABytes, blockOffsetC, j * matrixBlockSize + k,
-                             blockPrecC);
-        write_element(ABytes, blockOffsetA, i * matrixBlockSize + j, value,
-                      blockPrecA);
+            read_element(ABytes, blockOffsetA, i * matrixBlockSize + j, blockPrecA) -
+            read_element(ABytes, blockOffsetB, i * matrixBlockSize + k, blockPrecB) *
+                read_element(ABytes, blockOffsetC, j * matrixBlockSize + k, blockPrecC);
+        write_element(ABytes, blockOffsetA, i * matrixBlockSize + j, value, blockPrecA);
       }
     });
   });
@@ -606,9 +562,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep(
 }
 
 sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-    int blockCount, int blockCountXY) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets, int blockID,
+    int blockRow, int blockStart, int blockCount, int blockCountXY) {
   const int wgSize_xy = conf::workGroupSizeGEMM_xy;
   if (conf::matrixBlockSize % wgSize_xy != 0) {
     throw std::runtime_error("xy work-group dimension for matrix "
@@ -626,13 +581,11 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
   const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
   const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
   const int lowerBlockCount =
-      totalBlockCount -
-      ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+      totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
   const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
-  const range globalRange(wgCount_xy * wgSize_xy,
-                          wgCount * wgCount_xy * wgSize_xy);
+  const range globalRange(wgCount_xy * wgSize_xy, wgCount * wgCount_xy * wgSize_xy);
   const range localRange(wgSize_xy, wgSize_xy);
   const auto kernelRange = nd_range{globalRange, localRange};
 
@@ -641,10 +594,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
   unsigned char *ABytes = reinterpret_cast<unsigned char *>(A);
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
-    auto local_tile_B =
-        local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
-    auto local_tile_C = local_accessor<conf::fp_type, 2>(
-        sycl::range(wgSize_xy, wgSize_xy + 1), h);
+    auto local_tile_B = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
+    auto local_tile_C = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy + 1), h);
 
     h.parallel_for(kernelRange, [=](auto &nd_item) {
       const int local_i = nd_item.get_local_id(0);
@@ -668,9 +619,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
       // work-group
       const int wgBlockID_A =
           blockID + blockCountXY - blockRow + columnID + 1 +
-          (totalBlockCount -
-           ((blockCountXY - blockRow - 2 - columnID) *
-            (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+          (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                              (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
           rowID - columnID;
 
       const int wgBlockID_B = blockID + rowID + 2;
@@ -696,8 +646,7 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
       const int i_c = internalBlockOffset_j + local_i;
 
       // load initial value for result
-      conf::fp_type value = read_element(ABytes, blockOffsetA,
-                                         i * matrixBlockSize + j, blockPrecA);
+      conf::fp_type value = read_element(ABytes, blockOffsetA, i * matrixBlockSize + j, blockPrecA);
 
       const std::size_t startIndexB = i * matrixBlockSize + local_j;
       const std::size_t startIndexC = i_c * matrixBlockSize + local_j;
@@ -705,12 +654,12 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
       // perform update for lower triangle of the diagonal
       for (int t = 0; t < wgCount_xy; ++t) {
         // normal block
-        local_tile_B[local_i][local_j] = read_element(
-            ABytes, blockOffsetB, startIndexB + t * wgSize_xy, blockPrecB);
+        local_tile_B[local_i][local_j] =
+            read_element(ABytes, blockOffsetB, startIndexB + t * wgSize_xy, blockPrecB);
 
         // transposed block
-        local_tile_C[local_i][local_j] = read_element(
-            ABytes, blockOffsetC, startIndexC + t * wgSize_xy, blockPrecC);
+        local_tile_C[local_i][local_j] =
+            read_element(ABytes, blockOffsetC, startIndexC + t * wgSize_xy, blockPrecC);
 
         group_barrier(nd_item.get_group(), memory_scope::work_group);
 
@@ -721,8 +670,7 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
         }
         group_barrier(nd_item.get_group(), memory_scope::work_group);
       }
-      write_element(ABytes, blockOffsetA, i * matrixBlockSize + j, value,
-                    blockPrecA);
+      write_element(ABytes, blockOffsetA, i * matrixBlockSize + j, value, blockPrecA);
     });
   });
 
@@ -730,9 +678,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU(
 }
 
 sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-    int blockCount, int blockCountXY) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets, int blockID,
+    int blockRow, int blockStart, int blockCount, int blockCountXY) {
   const int wgSize_xy = conf::workGroupSizeGEMM_xy;
   if (conf::matrixBlockSize % wgSize_xy != 0) {
     throw std::runtime_error("xy work-group dimension for matrix "
@@ -750,13 +697,11 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
   const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
   const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
   const int lowerBlockCount =
-      totalBlockCount -
-      ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+      totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
   const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
-  const range globalRange(wgCount_xy * wgSize_xy,
-                          wgCount * wgCount_xy * wgSize_xy);
+  const range globalRange(wgCount_xy * wgSize_xy, wgCount * wgCount_xy * wgSize_xy);
   const range localRange(wgSize_xy, wgSize_xy);
   const auto kernelRange = nd_range{globalRange, localRange};
 
@@ -765,10 +710,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
   unsigned char *ABytes = reinterpret_cast<unsigned char *>(A);
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
-    auto local_tile_B =
-        local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
-    auto local_tile_C = local_accessor<conf::fp_type, 2>(
-        sycl::range(wgSize_xy, wgSize_xy + 1), h);
+    auto local_tile_B = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
+    auto local_tile_C = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy + 1), h);
     auto offset_cache = local_accessor<std::size_t, 1>(sycl::range(3), h);
     auto precision_cache = local_accessor<int, 1>(sycl::range(3), h);
 
@@ -795,9 +738,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
         // work-group
         const int wgBlockID_A =
             blockID + blockCountXY - blockRow + columnID + 1 +
-            (totalBlockCount -
-             ((blockCountXY - blockRow - 2 - columnID) *
-              (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+            (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
             rowID - columnID;
 
         const int wgBlockID_B = blockID + rowID + 2;
@@ -841,12 +783,12 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
       // perform update for lower triangle of the diagonal
       for (int t = 0; t < wgCount_xy; ++t) {
         // normal block
-        local_tile_B[local_i][local_j] = read_element(
-            ABytes, blockOffset_B, startIndexB + t * wgSize_xy, blockPrec_B);
+        local_tile_B[local_i][local_j] =
+            read_element(ABytes, blockOffset_B, startIndexB + t * wgSize_xy, blockPrec_B);
 
         // transposed block
-        local_tile_C[local_i][local_j] = read_element(
-            ABytes, blockOffset_C, startIndexC + t * wgSize_xy, blockPrec_C);
+        local_tile_C[local_i][local_j] =
+            read_element(ABytes, blockOffset_C, startIndexC + t * wgSize_xy, blockPrec_C);
 
         group_barrier(nd_item.get_group(), memory_scope::work_group);
 
@@ -858,11 +800,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
         group_barrier(nd_item.get_group(), memory_scope::work_group);
       }
       conf::fp_type tmp_val =
-          read_element(ABytes, blockOffset_A, i * matrixBlockSize + j,
-                       blockPrec_A) -
-          value;
-      write_element(ABytes, blockOffset_A, i * matrixBlockSize + j, tmp_val,
-                    blockPrec_A);
+          read_element(ABytes, blockOffset_A, i * matrixBlockSize + j, blockPrec_A) - value;
+      write_element(ABytes, blockOffset_A, i * matrixBlockSize + j, tmp_val, blockPrec_A);
     });
   });
 
@@ -870,9 +809,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
 }
 
 sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, int blockID, int blockRow, int blockStart,
-    int blockCount, int blockCountXY) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets, int blockID,
+    int blockRow, int blockStart, int blockCount, int blockCountXY) {
   const int wgSize_xy = 16;
 
   const int valuesPerWorkItem_xy = 4;
@@ -882,19 +820,15 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
   const int sharedMemBlockSize_x = 16;
   const int sharedMemBlockSize_y = wgSize_xy * valuesPerWorkItem_xy;
 
-  const int sharedMemBlockCount =
-      static_cast<int>(conf::matrixBlockSize) / sharedMemBlockSize_x;
+  const int sharedMemBlockCount = static_cast<int>(conf::matrixBlockSize) / sharedMemBlockSize_x;
 
-  if (conf::matrixBlockSize % wgSize_xy != 0 ||
-      conf::matrixBlockSize % sharedMemBlockSize_x != 0 ||
+  if (conf::matrixBlockSize % wgSize_xy != 0 || conf::matrixBlockSize % sharedMemBlockSize_x != 0 ||
       conf::matrixBlockSize % sharedMemBlockSize_y != 0) {
-    throw std::runtime_error(
-        "xy work-group dimension for matrix multiplication must divide matrix "
-        "block size and shared memory block size");
+    throw std::runtime_error("xy work-group dimension for matrix multiplication must divide matrix "
+                             "block size and shared memory block size");
   }
 
-  const int wgCount_xy =
-      static_cast<int>(conf::matrixBlockSize) / wgBlockSize_xy;
+  const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgBlockSize_xy;
 
   const int rowsAbove = blockStart - (blockRow + 2);
   const int rowsBelow = blockCountXY - blockStart - blockCount;
@@ -905,21 +839,18 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
   const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
   const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
   const int lowerBlockCount =
-      totalBlockCount -
-      ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+      totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
   const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
-  const range globalRange(wgCount_xy * wgSize_xy,
-                          wgCount * wgCount_xy * wgSize_xy);
+  const range globalRange(wgCount_xy * wgSize_xy, wgCount * wgCount_xy * wgSize_xy);
   const range localRange(wgSize_xy, wgSize_xy);
   const auto kernelRange = nd_range{globalRange, localRange};
 
   const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
   unsigned char *ABytes = reinterpret_cast<unsigned char *>(A);
-  std::cout << "matrixMatrixStep_optimizedGPU3: Starting queue part..."
-            << std::endl;
+  std::cout << "matrixMatrixStep_optimizedGPU3: Starting queue part..." << std::endl;
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
     auto local_tile_B = local_accessor<conf::fp_type, 2>(
@@ -940,8 +871,7 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
         // block ID of matrix blocks if one would enumerate them row by row
         const int rowBlockID = upperBlockCount + (group_id_i / wgCount_xy);
 
-        const int rowID =
-            static_cast<int>((-1.0 + sycl::sqrt(1.0 + 8.0 * rowBlockID)) / 2);
+        const int rowID = static_cast<int>((-1.0 + sycl::sqrt(1.0 + 8.0 * rowBlockID)) / 2);
 
         const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 
@@ -953,9 +883,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
         // work-group
         const int wgBlockID_A =
             blockID + blockCountXY - blockRow + columnID + 1 +
-            (totalBlockCount -
-             ((blockCountXY - blockRow - 2 - columnID) *
-              (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+            (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
             rowID - columnID;
 
         const int wgBlockID_B = blockID + rowID + 2;
@@ -980,10 +909,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
       const int blockPrec_C = precision_cache[2];
 
       // indices in of the current work-item in the matrix block
-      const int internalBlockOffset_i =
-          (group_id_i % wgCount_xy) * wgBlockSize_xy;
-      const int internalBlockOffset_j =
-          (group_id_j % wgCount_xy) * wgBlockSize_xy;
+      const int internalBlockOffset_i = (group_id_i % wgCount_xy) * wgBlockSize_xy;
+      const int internalBlockOffset_j = (group_id_j % wgCount_xy) * wgBlockSize_xy;
 
       // upper left index of the valuesPerWorkItem_xy x valuesPerWorkItem_xy
       // tile of this work-item in the result matrix
@@ -1008,9 +935,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
         for (int s = 0; s < valuesPerWorkItem_xy; ++s) {
           local_tile_B[local_i + s * wgSize_xy][local_j] =
               read_element(ABytes, blockOffset_B,
-                           startIndexB + t * sharedMemBlockSize_x +
-                               local_i * matrixBlockSize + local_j +
-                               s * wgSize_xy * matrixBlockSize,
+                           startIndexB + t * sharedMemBlockSize_x + local_i * matrixBlockSize +
+                               local_j + s * wgSize_xy * matrixBlockSize,
                            blockPrec_B);
         }
 
@@ -1018,9 +944,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
         for (int s = 0; s < valuesPerWorkItem_xy; ++s) {
           local_tile_C[local_i][local_j + s * wgSize_xy] =
               read_element(ABytes, blockOffset_C,
-                           startIndexC + t * sharedMemBlockSize_x +
-                               local_j * matrixBlockSize + local_i +
-                               s * wgSize_xy * matrixBlockSize,
+                           startIndexC + t * sharedMemBlockSize_x + local_j * matrixBlockSize +
+                               local_i + s * wgSize_xy * matrixBlockSize,
                            blockPrec_C);
         }
 
@@ -1029,9 +954,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
         for (int k = 0; k < sharedMemBlockSize_x; ++k) {
           for (int ii = 0; ii < valuesPerWorkItem_xy; ++ii) {
             for (int jj = 0; jj < valuesPerWorkItem_xy; ++jj) {
-              workItemTile[ii][jj] +=
-                  local_tile_B[local_i * valuesPerWorkItem_xy + ii][k] *
-                  local_tile_C[k][local_j * valuesPerWorkItem_xy + jj];
+              workItemTile[ii][jj] += local_tile_B[local_i * valuesPerWorkItem_xy + ii][k] *
+                                      local_tile_C[k][local_j * valuesPerWorkItem_xy + jj];
             }
           }
         }
@@ -1043,12 +967,10 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
       conf::fp_type tmp_val;
       for (int ii = 0; ii < valuesPerWorkItem_xy; ++ii) {
         for (int jj = 0; jj < valuesPerWorkItem_xy; ++jj) {
-          tmp_val =
-              read_element(ABytes, blockOffset_A,
-                           (i + ii) * matrixBlockSize + (j + jj), blockPrec_A) -
-              workItemTile[ii][jj];
-          write_element(ABytes, blockOffset_A,
-                        (i + ii) * matrixBlockSize + (j + jj), tmp_val,
+          tmp_val = read_element(ABytes, blockOffset_A, (i + ii) * matrixBlockSize + (j + jj),
+                                 blockPrec_A) -
+                    workItemTile[ii][jj];
+          write_element(ABytes, blockOffset_A, (i + ii) * matrixBlockSize + (j + jj), tmp_val,
                         blockPrec_A);
         }
       }
@@ -1059,9 +981,9 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
 }
 
 sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount, const int blockCountXY) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
+    const int blockID, const int blockRow, const int blockStart, const int blockCount,
+    const int blockCountXY) {
   const int rowsAbove = blockStart - (blockRow + 2);
   const int rowsBelow = blockCountXY - blockStart - blockCount;
 
@@ -1071,13 +993,11 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU(
   const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
   const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
   const int lowerBlockCount =
-      totalBlockCount -
-      ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+      totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
   const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
-  const range globalRange(wgCount * conf::matrixBlockSize,
-                          conf::matrixBlockSize);
+  const range globalRange(wgCount * conf::matrixBlockSize, conf::matrixBlockSize);
 
   const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
@@ -1106,9 +1026,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU(
       // work-group
       const int wgBlockID_A =
           blockID + blockCountXY - blockRow + columnID + 1 +
-          (totalBlockCount -
-           ((blockCountXY - blockRow - 2 - columnID) *
-            (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+          (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                              (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
           rowID - columnID;
 
       const int wgBlockID_B = blockID + rowID + 2;
@@ -1125,19 +1044,15 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU(
       const int i = local_i;
       const int j = local_j % matrixBlockSize;
 
-      conf::fp_type value = read_element(ABytes, blockOffsetA,
-                                         i * matrixBlockSize + j, blockPrecA);
+      conf::fp_type value = read_element(ABytes, blockOffsetA, i * matrixBlockSize + j, blockPrecA);
 #pragma clang loop vectorize(enable) unroll(enable)
       for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
         // A = A - B * C^T
-        value = value - read_element(ABytes, blockOffsetB,
-                                     i * matrixBlockSize + k, blockPrecB) *
-                            read_element(ABytes, blockOffsetC,
-                                         j * matrixBlockSize + k, blockPrecC);
+        value = value - read_element(ABytes, blockOffsetB, i * matrixBlockSize + k, blockPrecB) *
+                            read_element(ABytes, blockOffsetC, j * matrixBlockSize + k, blockPrecC);
       }
 
-      write_element(ABytes, blockOffsetA, i * matrixBlockSize + j, value,
-                    blockPrecA);
+      write_element(ABytes, blockOffsetA, i * matrixBlockSize + j, value, blockPrecA);
     });
   });
 
@@ -1145,9 +1060,9 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU(
 }
 
 sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU2(
-    sycl::queue &queue, void *A, int *precisionTypes,
-    std::size_t *blockByteOffsets, const int blockID, const int blockRow,
-    const int blockStart, const int blockCount, const int blockCountXY) {
+    sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
+    const int blockID, const int blockRow, const int blockStart, const int blockCount,
+    const int blockCountXY) {
   const int rowsAbove = blockStart - (blockRow + 2);
   const int rowsBelow = blockCountXY - blockStart - blockCount;
 
@@ -1157,8 +1072,7 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU2(
   const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
   const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
   const int lowerBlockCount =
-      totalBlockCount -
-      ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+      totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
   const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
@@ -1190,9 +1104,8 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU2(
       // work-group
       const int wgBlockID_A =
           blockID + blockCountXY - blockRow + columnID + 1 +
-          (totalBlockCount -
-           ((blockCountXY - blockRow - 2 - columnID) *
-            (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+          (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                              (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
           rowID - columnID;
 
       const int wgBlockID_B = blockID + rowID + 2;
@@ -1213,17 +1126,12 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU2(
 #pragma clang loop vectorize(enable) unroll(enable)
         for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
           // A = A - B * C^T
-          value += read_element(ABytes, blockOffsetB, j * matrixBlockSize + k,
-                                blockPrecB) *
-                   read_element(ABytes, blockOffsetC, i * matrixBlockSize + k,
-                                blockPrecC);
+          value += read_element(ABytes, blockOffsetB, j * matrixBlockSize + k, blockPrecB) *
+                   read_element(ABytes, blockOffsetC, i * matrixBlockSize + k, blockPrecC);
         }
         conf::fp_type tmp_val =
-            read_element(ABytes, blockOffsetA, j * matrixBlockSize + i,
-                         blockPrecA) -
-            value;
-        write_element(ABytes, blockOffsetA, j * matrixBlockSize + i, tmp_val,
-                      blockPrecA);
+            read_element(ABytes, blockOffsetA, j * matrixBlockSize + i, blockPrecA) - value;
+        write_element(ABytes, blockOffsetA, j * matrixBlockSize + i, tmp_val, blockPrecA);
       }
     });
   });

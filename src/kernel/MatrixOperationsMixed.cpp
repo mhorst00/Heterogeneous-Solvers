@@ -72,8 +72,7 @@ sycl::event MatrixOperationsMixed::cholesky(sycl::queue &queue, T *A,
 
 template <typename T>
 sycl::event MatrixOperationsMixed::cholesky_GPU(sycl::queue &queue, T *A,
-                                                std::size_t blockStartOffset,
-                                                int blockRow) {
+                                                std::size_t blockStartOffset, int blockRow) {
   // launch kernel with the size of exactly one work-group
   const range globalRange(conf::matrixBlockSize);
   const range localRange(conf::matrixBlockSize);
@@ -107,8 +106,7 @@ sycl::event MatrixOperationsMixed::cholesky_GPU(sycl::queue &queue, T *A,
           if (local_i > k) {
             A_ik = ATyped[local_i * matrixBlockSize + k] / sqrtDiag;
             ATyped[local_i * matrixBlockSize + k] = A_ik;
-            local_column[local_i] =
-                A_ik; // store value of column in local memory
+            local_column[local_i] = A_ik; // store value of column in local memory
           }
         }
 
@@ -141,8 +139,9 @@ sycl::event MatrixOperationsMixed::cholesky_GPU(sycl::queue &queue, T *A,
 }
 
 template <typename T>
-sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(
-    sycl::queue &queue, T *A, std::size_t blockStartOffset, int blockRow) {
+sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(sycl::queue &queue, T *A,
+                                                         std::size_t blockStartOffset,
+                                                         int blockRow) {
   // launch kernel with the size of exactly one work-group
   const range globalRange(conf::matrixBlockSize * conf::matrixBlockSize);
   const range localRange(conf::matrixBlockSize);
@@ -176,8 +175,7 @@ sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(
               const T sqrtDiag = sycl::sqrt(diagVal);
               A_ik = ATyped[local_i * matrixBlockSize + k] / sqrtDiag;
               ATyped[local_i * matrixBlockSize + k] = A_ik;
-              local_column[local_i] =
-                  A_ik; // store value of column in local memory
+              local_column[local_i] = A_ik; // store value of column in local memory
             }
           }
 
@@ -222,28 +220,21 @@ sycl::event MatrixOperationsMixed::cholesky_optimizedGPU(
   return event;
 }
 // Explicit instantiations - Add types here as required
-template sycl::event MatrixOperationsMixed::cholesky<sycl::half>(sycl::queue &,
-                                                                 sycl::half *,
+template sycl::event MatrixOperationsMixed::cholesky<sycl::half>(sycl::queue &, sycl::half *,
                                                                  size_t, int);
-template sycl::event
-MatrixOperationsMixed::cholesky<float>(sycl::queue &, float *, size_t, int);
-template sycl::event
-MatrixOperationsMixed::cholesky<double>(sycl::queue &, double *, size_t, int);
+template sycl::event MatrixOperationsMixed::cholesky<float>(sycl::queue &, float *, size_t, int);
+template sycl::event MatrixOperationsMixed::cholesky<double>(sycl::queue &, double *, size_t, int);
+
+template sycl::event MatrixOperationsMixed::cholesky_GPU<sycl::half>(sycl::queue &, sycl::half *,
+                                                                     size_t, int);
+template sycl::event MatrixOperationsMixed::cholesky_GPU<float>(sycl::queue &, float *, size_t,
+                                                                int);
+template sycl::event MatrixOperationsMixed::cholesky_GPU<double>(sycl::queue &, double *, size_t,
+                                                                 int);
 
 template sycl::event
-MatrixOperationsMixed::cholesky_GPU<sycl::half>(sycl::queue &, sycl::half *,
-                                                size_t, int);
-template sycl::event
-MatrixOperationsMixed::cholesky_GPU<float>(sycl::queue &, float *, size_t, int);
-template sycl::event MatrixOperationsMixed::cholesky_GPU<double>(sycl::queue &,
-                                                                 double *,
-                                                                 size_t, int);
-
-template sycl::event MatrixOperationsMixed::cholesky_optimizedGPU<sycl::half>(
-    sycl::queue &, sycl::half *, size_t, int);
-template sycl::event
-MatrixOperationsMixed::cholesky_optimizedGPU<float>(sycl::queue &, float *,
-                                                    size_t, int);
-template sycl::event
-MatrixOperationsMixed::cholesky_optimizedGPU<double>(sycl::queue &, double *,
-                                                     size_t, int);
+MatrixOperationsMixed::cholesky_optimizedGPU<sycl::half>(sycl::queue &, sycl::half *, size_t, int);
+template sycl::event MatrixOperationsMixed::cholesky_optimizedGPU<float>(sycl::queue &, float *,
+                                                                         size_t, int);
+template sycl::event MatrixOperationsMixed::cholesky_optimizedGPU<double>(sycl::queue &, double *,
+                                                                          size_t, int);

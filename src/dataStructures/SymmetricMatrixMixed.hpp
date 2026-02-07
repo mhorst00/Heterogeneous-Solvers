@@ -59,20 +59,15 @@ public:
   std::size_t blockCountFP32;
   std::size_t blockCountFP64;
   // SYCL shared memory containing array of precision per block in block order
-  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>>
-      precisionTypes;
+  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> precisionTypes;
   // SYCL shared memory containing array of rank per block in block order
-  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>>
-      blockRanks;
+  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> blockRanks;
   // SYCL shared memory containing array of byte offset until current block
-  std::vector<std::size_t,
-              sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>>
+  std::vector<std::size_t, sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>>
       blockByteOffsets;
 
   /// internal matrix data structure allocated as SYCL host memory
-  std::vector<unsigned char,
-              sycl::usm_allocator<unsigned char, sycl::usm::alloc::host>>
-      matrixData;
+  std::vector<unsigned char, sycl::usm_allocator<unsigned char, sycl::usm::alloc::host>> matrixData;
 
   void allocate(size_t total_bytes);
 };
