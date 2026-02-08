@@ -55,9 +55,9 @@ SymmetricMatrixMixed MatrixGeneratorMixed::generateSPDMatrixMixed(std::string &p
       for (std::size_t row = col; row < static_cast<std::size_t>(matrix.blockCountXY); ++row) {
         const int distance = sycl::abs(row - col);
         const double rel_distance = static_cast<double>(distance) / matrix.blockCountXY;
-        if (rel_distance < 0.1) {
+        if (rel_distance < conf::fp64Bound) {
           trainingPrecisionTypes[continuous_index] = 8;
-        } else if (rel_distance < 0.95) {
+        } else if (rel_distance < conf::fp32Bound) {
           trainingPrecisionTypes[continuous_index] = 4;
         } else {
           trainingPrecisionTypes[continuous_index] = remaining_precision;

@@ -721,6 +721,13 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU2(
       const int group_id_i = nd_item.get_group().get_group_id(1);
       const int group_id_j = nd_item.get_group().get_group_id(0);
 
+      // Initialize for ALL work-items
+      if (local_i == 0 && local_j < 3) {
+        offset_cache[local_j] = 0;
+        precision_cache[local_j] = 0;
+      }
+      group_barrier(nd_item.get_group(), memory_scope::work_group);
+
       // row ID in the lower triangle where the computation takes place
       if (local_i == 0 && local_j == 0) {
         // block ID of matrix blocks if one would enumerate them row by row
@@ -850,7 +857,6 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
   const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
   unsigned char *ABytes = reinterpret_cast<unsigned char *>(A);
-  std::cout << "matrixMatrixStep_optimizedGPU3: Starting queue part..." << std::endl;
 
   sycl::event event = queue.submit([&](sycl::handler &h) {
     auto local_tile_B = local_accessor<conf::fp_type, 2>(
@@ -866,12 +872,19 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedGPU3(
       const int group_id_i = nd_item.get_group().get_group_id(1);
       const int group_id_j = nd_item.get_group().get_group_id(0);
 
+      // Initialize for ALL work-items
+      if (local_i == 0 && local_j < 3) {
+        offset_cache[local_j] = 0;
+        precision_cache[local_j] = 0;
+      }
+      group_barrier(nd_item.get_group(), memory_scope::work_group);
+
       // row ID in the lower triangle where the computation takes place
       if (local_i == 0 && local_j == 0) {
         // block ID of matrix blocks if one would enumerate them row by row
         const int rowBlockID = upperBlockCount + (group_id_i / wgCount_xy);
 
-        const int rowID = static_cast<int>((-1.0 + sycl::sqrt(1.0 + 8.0 * rowBlockID)) / 2);
+        const int rowID = (-1.0 + sycl::sqrt(1.0 + 8.0 * rowBlockID)) / 2;
 
         const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 

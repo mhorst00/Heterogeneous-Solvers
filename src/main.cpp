@@ -10,6 +10,7 @@
 #include "CG.hpp"
 #include "CGMixed.hpp"
 #include "CholeskyMixed.hpp"
+#include "Configuration.hpp"
 #include "LoadBalancer.hpp"
 #include "MatrixGenerator.hpp"
 #include "MatrixGeneratorMixed.hpp"
@@ -40,57 +41,41 @@ int main(int argc, char *argv[]) {
                                    "CG Algorithm with CPU-GPU co-execution");
 
   argumentOptions.add_options()(
-      "path_A",
-      "path to .txt file containing symmetric positive definite matrix A",
-      cxxopts::value<std::string>())(
-      "path_b", "path to .txt file containing the right-hand side b",
-      cxxopts::value<std::string>())("output", "path to the output directory",
+      "path_A", "path to .txt file containing symmetric positive definite matrix A",
+      cxxopts::value<std::string>())("path_b", "path to .txt file containing the right-hand side b",
                                      cxxopts::value<std::string>())(
-      "gp_input", "path to the input data for GP matrix generation",
-      cxxopts::value<std::string>())(
+      "output", "path to the output directory", cxxopts::value<std::string>())(
+      "gp_input", "path to the input data for GP matrix generation", cxxopts::value<std::string>())(
       "gp_output", "path to the output data for GP matrix generation",
-      cxxopts::value<std::string>())(
-      "gp_test", "path to the test input data for GP regression",
-      cxxopts::value<std::string>())(
+      cxxopts::value<std::string>())("gp_test", "path to the test input data for GP regression",
+                                     cxxopts::value<std::string>())(
       "mode",
       "specifies the load balancing mode between CPU and GPU, has to be "
       "'static', 'runtime' or 'power'",
-      cxxopts::value<std::string>())(
-      "matrix_bsz", "block size for the symmetric matrix storage",
-      cxxopts::value<int>())("wg_size_vec",
-                             "work-group size for vector-vector operations",
-                             cxxopts::value<int>())(
+      cxxopts::value<std::string>())("matrix_bsz", "block size for the symmetric matrix storage",
+                                     cxxopts::value<int>())(
+      "wg_size_vec", "work-group size for vector-vector operations", cxxopts::value<int>())(
       "wg_size_sp", "work-group size for the final scalar product step on GPUs",
-      cxxopts::value<int>())("i_max", "maximum number of iterations",
-                             cxxopts::value<int>())(
-      "eps", "epsilon value for the termination of the cg algorithm",
-      cxxopts::value<double>())(
+      cxxopts::value<int>())("i_max", "maximum number of iterations", cxxopts::value<int>())(
+      "eps", "epsilon value for the termination of the cg algorithm", cxxopts::value<double>())(
       "update_int", "interval in which CPU/GPU distribution will be rebalanced",
-      cxxopts::value<int>())("init_gpu_perc",
-                             "initial proportion of work assigned to gpu",
+      cxxopts::value<int>())("init_gpu_perc", "initial proportion of work assigned to gpu",
                              cxxopts::value<double>())(
-      "write_result", "write the result vector x to a .txt file",
-      cxxopts::value<bool>())(
-      "write_matrix",
-      "write the result matrix L of the cholesky decomposition to a .txt file",
-      cxxopts::value<bool>())(
-      "cpu_lb_factor",
-      "factor that scales the CPU times for runtime load balancing",
-      cxxopts::value<double>())(
+      "write_result", "write the result vector x to a .txt file", cxxopts::value<bool>())(
+      "write_matrix", "write the result matrix L of the cholesky decomposition to a .txt file",
+      cxxopts::value<bool>())("cpu_lb_factor",
+                              "factor that scales the CPU times for runtime load balancing",
+                              cxxopts::value<double>())(
       "block_update_th",
       "when block count change during re-balancing is equal or below this "
       "number, no re-balancing occurs",
       cxxopts::value<std::size_t>())(
-      "size",
-      "size of the matrix if a matrix should be generated from input data",
-      cxxopts::value<std::size_t>())(
-      "test_size", "size of the test data for a gaussian processs",
-      cxxopts::value<std::size_t>())(
-      "algorithm",
-      "the algorithm that should be used: can be 'cg' or 'cholesky'",
+      "size", "size of the matrix if a matrix should be generated from input data",
+      cxxopts::value<std::size_t>())("test_size", "size of the test data for a gaussian processs",
+                                     cxxopts::value<std::size_t>())(
+      "algorithm", "the algorithm that should be used: can be 'cg' or 'cholesky'",
       cxxopts::value<std::string>())(
-      "enableHWS",
-      "enables sampling with hws library, might affect CPU/GPU performance",
+      "enableHWS", "enables sampling with hws library, might affect CPU/GPU performance",
       cxxopts::value<bool>())(
       "gpu_opt",
       "optimization level 0-3 for GPU optimized matrix-matrix kernel (higher "
@@ -101,18 +86,16 @@ int main(int argc, char *argv[]) {
       "values for more optimized kernels)",
       cxxopts::value<int>())("verbose", "enable/disable verbose console output",
                              cxxopts::value<bool>())(
-      "check_result",
-      "enable/disable result check that outputs error of Ax - b",
-      cxxopts::value<bool>())(
-      "track_chol_solve",
-      "enable/disable hws tracking of solving step for cholesky",
-      cxxopts::value<bool>())("gpr",
-                              "perform gaussian process regression (GPR)",
+      "check_result", "enable/disable result check that outputs error of Ax - b",
+      cxxopts::value<bool>())("track_chol_solve",
+                              "enable/disable hws tracking of solving step for cholesky",
                               cxxopts::value<bool>())(
-      "mixed", "enable mixed precision mode", cxxopts::value<bool>())(
+      "gpr", "perform gaussian process regression (GPR)",
+      cxxopts::value<bool>())("mixed", "enable mixed precision mode", cxxopts::value<bool>())(
       "fp16", "enable fp16 for mixed precision", cxxopts::value<bool>())(
-      "qr", "use qr decomposition for precision calculation",
-      cxxopts::value<bool>());
+      "qr", "use qr decomposition for precision calculation", cxxopts::value<bool>())(
+      "fp64_bound", "upper relative boundary for fp64 blocks", cxxopts::value<double>())(
+      "fp32_bound", "upper relative boundary for fp32 blocks", cxxopts::value<double>());
 
   const auto arguments = argumentOptions.parse(argc, argv);
 
@@ -248,15 +231,21 @@ int main(int argc, char *argv[]) {
     conf::qr = arguments["qr"].as<bool>();
   }
 
+  if (arguments.count("fp64_bound")) {
+    conf::fp64Bound = arguments["fp64_bound"].as<double>();
+  }
+
+  if (arguments.count("fp32_bound")) {
+    conf::fp32Bound = arguments["fp32_bound"].as<double>();
+  }
+
   sycl::property_list properties{sycl::property::queue::enable_profiling()};
 
   queue gpuQueue(gpu_selector_v, properties);
   queue cpuQueue(cpu_selector_v, properties);
 
-  std::cout << "GPU: " << gpuQueue.get_device().get_info<info::device::name>()
-            << std::endl;
-  std::cout << "CPU: " << cpuQueue.get_device().get_info<info::device::name>()
-            << std::endl;
+  std::cout << "GPU: " << gpuQueue.get_device().get_info<info::device::name>() << std::endl;
+  std::cout << "CPU: " << cpuQueue.get_device().get_info<info::device::name>() << std::endl;
 
   // measure CPU idle power draw in Watts
   UtilityFunctions::measureIdlePowerCPU();
@@ -265,18 +254,15 @@ int main(int argc, char *argv[]) {
   std::optional<SymmetricMatrix> A;
 
   if (conf::mixed) {
-    A_mixed.emplace(MatrixGeneratorMixed::generateSPDMatrixMixed(
-        path_gp_input, cpuQueue, gpuQueue));
+    A_mixed.emplace(
+        MatrixGeneratorMixed::generateSPDMatrixMixed(path_gp_input, cpuQueue, gpuQueue));
   } else {
-    A.emplace(generateMatrix
-                  ? MatrixGenerator::generateSPDMatrix(path_gp_input, cpuQueue,
-                                                       gpuQueue)
-                  : MatrixParser::parseSymmetricMatrix(path_A, gpuQueue));
+    A.emplace(generateMatrix ? MatrixGenerator::generateSPDMatrix(path_gp_input, cpuQueue, gpuQueue)
+                             : MatrixParser::parseSymmetricMatrix(path_A, gpuQueue));
   }
 
-  RightHandSide b = generateMatrix
-                        ? MatrixGenerator::parseRHS_GP(path_gp_output, gpuQueue)
-                        : MatrixParser::parseRightHandSide(path_b, gpuQueue);
+  RightHandSide b = generateMatrix ? MatrixGenerator::parseRHS_GP(path_gp_output, gpuQueue)
+                                   : MatrixParser::parseRightHandSide(path_b, gpuQueue);
 
   std::shared_ptr<LoadBalancer> loadBalancer;
   if (conf::mode == "static") {
@@ -298,8 +284,7 @@ int main(int argc, char *argv[]) {
 
   std::cout << "-- starting with computation" << std::endl;
   if (performGPR && A.has_value()) {
-    GaussianProcess GP(A.value(), b, path_gp_input, path_gp_test, cpuQueue,
-                       gpuQueue, loadBalancer);
+    GaussianProcess GP(A.value(), b, path_gp_input, path_gp_test, cpuQueue, gpuQueue, loadBalancer);
     GP.start();
   } else {
     if (conf::algorithm == "cg") {
@@ -312,11 +297,10 @@ int main(int argc, char *argv[]) {
       }
     } else if (conf::algorithm == "cholesky") {
       if (conf::mixed) {
-        CholeskyMixed cholesky(A_mixed.value(), cpuQueue, gpuQueue,
-                               loadBalancer);
+        CholeskyMixed cholesky(A_mixed.value(), cpuQueue, gpuQueue, loadBalancer);
         cholesky.solve_heterogeneous();
-        TriangularSystemSolverMixed solver(A_mixed.value(), cholesky.A_gpu, b,
-                                           cpuQueue, gpuQueue, loadBalancer);
+        TriangularSystemSolverMixed solver(A_mixed.value(), cholesky.A_gpu, b, cpuQueue, gpuQueue,
+                                           loadBalancer);
         double solveTime = solver.solve();
 
         if (conf::trackCholeskySolveStep) {
@@ -331,8 +315,8 @@ int main(int argc, char *argv[]) {
       } else if (!conf::mixed) {
         Cholesky cholesky(A.value(), cpuQueue, gpuQueue, loadBalancer);
         cholesky.solve_heterogeneous();
-        TriangularSystemSolver solver(A.value(), cholesky.A_gpu, b, cpuQueue,
-                                      gpuQueue, loadBalancer);
+        TriangularSystemSolver solver(A.value(), cholesky.A_gpu, b, cpuQueue, gpuQueue,
+                                      loadBalancer);
         double solveTime = solver.solve();
         if (conf::trackCholeskySolveStep) {
           if (conf::printVerbose && conf::enableHWS) {
@@ -345,8 +329,8 @@ int main(int argc, char *argv[]) {
       }
 
       if (conf::checkResult) {
-        double error = UtilityFunctions::checkResult(
-            b, cpuQueue, gpuQueue, path_gp_input, path_gp_output);
+        double error =
+            UtilityFunctions::checkResult(b, cpuQueue, gpuQueue, path_gp_input, path_gp_output);
         std::cout << "Average error of Ax - b: " << error << std::endl;
       }
     } else {

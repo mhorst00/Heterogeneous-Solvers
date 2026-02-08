@@ -309,7 +309,6 @@ void CholeskyMixed::choleskyUpdateLowerBlockTriangle(const int k, const int bloc
     }
   }
   if (blockCountGPU > 1) {
-    // TODO: Fix optimized GPU functions to not error!
     switch (conf::gpuOptimizationLevel) {
     case 0:
       executionTimes.eventGPU_matrixMatrix = MatrixMatrixOperationsMixed::matrixMatrixStep(
