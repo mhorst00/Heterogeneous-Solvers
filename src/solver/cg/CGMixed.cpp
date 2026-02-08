@@ -226,8 +226,7 @@ void CGMixed::initGPUdataStructures() {
     maxBlockCountGPU = A.blockCountXY;
     // Whole matrix A fits into GPU memory
     // Get last known byte offset and add last block on top
-    bytesGPU = A.blockByteOffsets[A.blockByteOffsets.size() - 1] +
-               A.precisionTypes[A.precisionTypes.size() - 1] * A.blockSize * A.blockSize;
+    bytesGPU = A.blockByteOffsets[A.blockByteOffsets.size() - 1];
   }
 
   // Matrix A GPU
