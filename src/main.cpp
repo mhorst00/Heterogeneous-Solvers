@@ -15,7 +15,6 @@
 #include "MatrixGenerator.hpp"
 #include "MatrixGeneratorMixed.hpp"
 #include "MatrixParser.hpp"
-#include "MatrixParserMixed.hpp"
 #include "PowerLoadBalancer.hpp"
 #include "RightHandSide.hpp"
 #include "RuntimeLoadBalancer.hpp"
@@ -66,9 +65,11 @@ int main(int argc, char *argv[]) {
         ("enableHWS", "enables sampling with hws library, might affect CPU/GPU performance", cxxopts::value<bool>())
         ("gpu_opt", "optimization level 0-3 for GPU optimized matrix-matrix kernel (higher values for more optimized kernels)", cxxopts::value<int>())
         ("cpu_opt", "optimization level 0-2 for CPU optimized matrix-matrix kernel (higher values for more optimized kernels)", cxxopts::value<int>())
-        ("verbose", "enable/disable verbose console output", cxxopts::value<bool>())
+        ("print_verbose", "enable/disable verbose console output", cxxopts::value<bool>())
         ("check_result", "enable/disable result check that outputs error of Ax - b", cxxopts::value<bool>())
         ("track_chol_solve", "enable/disable hws tracking of solving step for cholesky", cxxopts::value<bool>())
+        ("unified_address_space", "enable/disable assuming a unified address space between CPU and GPU", cxxopts::value<bool>())
+        ("advanced_sampling", "enable/disable sampling of more metrics using hws", cxxopts::value<bool>())
         ("gpr", "perform gaussian process regression (GPR)", cxxopts::value<bool>())
         ("mixed", "enable mixed precision mode", cxxopts::value<bool>())
         ("fp16", "enable fp16 for mixed precision", cxxopts::value<bool>())
@@ -187,8 +188,8 @@ int main(int argc, char *argv[]) {
         conf::cpuOptimizationLevel = arguments["cpu_opt"].as<int>();
     }
 
-    if (arguments.count("verbose")) {
-        conf::printVerbose = arguments["verbose"].as<bool>();
+    if (arguments.count("print_verbose")) {
+        conf::printVerbose = arguments["print_verbose"].as<bool>();
     }
 
     if (arguments.count("check_result")) {
@@ -197,6 +198,14 @@ int main(int argc, char *argv[]) {
 
     if (arguments.count("track_chol_solve")) {
         conf::trackCholeskySolveStep = arguments["track_chol_solve"].as<bool>();
+    }
+
+    if (arguments.count("unified_address_space")) {
+        conf::unifiedAddressSpace = arguments["unified_address_space"].as<bool>();
+    }
+
+    if (arguments.count("advanced_sampling")) {
+        conf::advancedSampling = arguments["advanced_sampling"].as<bool>();
     }
 
     if (arguments.count("mixed")) {
@@ -219,6 +228,11 @@ int main(int argc, char *argv[]) {
         conf::fp32Bound = arguments["fp32_bound"].as<double>();
     }
 
+    if (conf::advancedSampling) {
+        // enable sampling of general, clock, power and temperature
+        conf::sampleCategories = static_cast<hws::sample_category>(0b00010111);
+    }
+
     sycl::property_list properties{sycl::property::queue::enable_profiling()};
 
     queue gpuQueue(gpu_selector_v, properties);
@@ -237,9 +251,9 @@ int main(int argc, char *argv[]) {
         A_mixed.emplace(MatrixGeneratorMixed::generateSPDMatrixMixed_optimized(path_gp_input,
                                                                                cpuQueue, gpuQueue));
     } else {
-        A.emplace(generateMatrix
-                      ? MatrixGenerator::generateSPDMatrix(path_gp_input, cpuQueue, gpuQueue)
-                      : MatrixParser::parseSymmetricMatrix(path_A, gpuQueue));
+        A.emplace(generateMatrix ? MatrixGenerator::generateSPDMatrix_optimized(path_gp_input,
+                                                                                cpuQueue, gpuQueue)
+                                 : MatrixParser::parseSymmetricMatrix(path_A, gpuQueue));
     }
 
     RightHandSide b = generateMatrix ? MatrixGenerator::parseRHS_GP(path_gp_output, gpuQueue)
