@@ -5,7 +5,10 @@
 
 using namespace sycl;
 
-sycl::event MatrixVectorOperations::matrixVectorBlock(queue& queue, const conf::fp_type* A, const conf::fp_type* b, conf::fp_type* result, const int blockStart_i, const int blockStart_j, const int blockCount_i, const int blockCount_j, const int blockCountXY, const bool reset) {
+sycl::event MatrixVectorOperations::matrixVectorBlock(
+    queue &queue, const conf::fp_type *A, const conf::fp_type *b, conf::fp_type *result,
+    const int blockStart_i, const int blockStart_j, const int blockCount_i, const int blockCount_j,
+    const int blockCountXY, const bool reset) {
     // global range corresponds to number of rows in the (sub) matrix
     const range globalRange(blockCount_i * conf::matrixBlockSize);
     const range localRange(conf::workGroupSize);
@@ -15,9 +18,8 @@ sycl::event MatrixVectorOperations::matrixVectorBlock(queue& queue, const conf::
 
     const bool addToPreviousEntries = !reset;
 
-
-    sycl::event event = queue.submit([&](handler& h) {
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+    sycl::event event = queue.submit([&](handler &h) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             // row i in the matrix
             const int i = nd_item.get_global_id() + blockStart_i * matrixBlockSize;
 
@@ -41,8 +43,9 @@ sycl::event MatrixVectorOperations::matrixVectorBlock(queue& queue, const conf::
                 resultValue += result[i];
             }
 
-            // First step: Process all matrix blocks up to the diagonal block (included) or the most left block that should be processed
-            // the blocks can be interpreted as they are stored in memory
+            // First step: Process all matrix blocks up to the diagonal block (included) or the most
+            // left block that should be processed the blocks can be interpreted as they are stored
+            // in memory
             for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1); ++block_j) {
                 // number of blocks in row to the right (if matrix would be full)
                 const int block_j_inv = blockCountXY - (block_j + 1);
@@ -53,9 +56,12 @@ sycl::event MatrixVectorOperations::matrixVectorBlock(queue& queue, const conf::
                 // id of block in the matrix data structure for symmetric matrices
                 blockID = block_i + referenceBlockCount - columnBlocksToRight;
 
-                // startIndex of the current block with blockID in the symmetric matrix data structure
-                std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
-                std::size_t rowStartIndex = blockStartIndex + static_cast<std::size_t>(iInBlock) * matrixBlockSize;
+                // startIndex of the current block with blockID in the symmetric matrix data
+                // structure
+                std::size_t blockStartIndex =
+                    static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
+                std::size_t rowStartIndex =
+                    blockStartIndex + static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
                 // go through all columns of the block and compute the matrix vector product
                 for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
@@ -63,24 +69,29 @@ sycl::event MatrixVectorOperations::matrixVectorBlock(queue& queue, const conf::
                 }
             }
 
-
             // Second step: Process all matrix blocks after the diagonal block
-            // the blocks have to be interpreted as transposed, since the upper triangle is not stored explicitly
+            // the blocks have to be interpreted as transposed, since the upper triangle is not
+            // stored explicitly
             for (; block_j < blockStart_j + blockCount_j; ++block_j) {
-                // same block ID calculation as previously, but now block_i and block_j have to be swapped due to symmetries
+                // same block ID calculation as previously, but now block_i and block_j have to be
+                // swapped due to symmetries
                 const int block_i_inv = blockCountXY - (block_i + 1);
                 const int columnBlocksToRight = (block_i_inv * (block_i_inv + 1)) / 2;
 
                 // id of block in the matrix data structure for symmetric matrices
                 blockID = block_j + referenceBlockCount - columnBlocksToRight;
 
-                // startIndex of the current block with blockID in the symmetric matrix data structure
-                const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
+                // startIndex of the current block with blockID in the symmetric matrix data
+                // structure
+                const std::size_t blockStartIndex =
+                    static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
 
                 // go through all columns of the block and compute the matrix vector product
-                // the block in storage now has to be interpreted as transposed since we are working on the data of the symmetric block
+                // the block in storage now has to be interpreted as transposed since we are working
+                // on the data of the symmetric block
                 for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
-                    resultValue += A[blockStartIndex + j * matrixBlockSize + iInBlock] * b[block_j * matrixBlockSize + j];
+                    resultValue += A[blockStartIndex + j * matrixBlockSize + iInBlock] *
+                                   b[block_j * matrixBlockSize + j];
                 }
             }
 
@@ -92,7 +103,10 @@ sycl::event MatrixVectorOperations::matrixVectorBlock(queue& queue, const conf::
     return event;
 }
 
-sycl::event MatrixVectorOperations::matrixVectorBlock_GPU(sycl::queue& queue, const conf::fp_type* A, const conf::fp_type* b, conf::fp_type* result, const int blockStart_i, const int blockStart_j, const int blockCount_i, const int blockCount_j, const int blockCountXY, const bool reset) {
+sycl::event MatrixVectorOperations::matrixVectorBlock_GPU(
+    sycl::queue &queue, const conf::fp_type *A, const conf::fp_type *b, conf::fp_type *result,
+    const int blockStart_i, const int blockStart_j, const int blockCount_i, const int blockCount_j,
+    const int blockCountXY, const bool reset) {
     // global range corresponds to number of rows in the (sub) matrix
     const range globalRange(blockCount_i * conf::matrixBlockSize);
     const range localRange(conf::workGroupSize);
@@ -102,11 +116,10 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_GPU(sycl::queue& queue, co
 
     const bool addToPreviousEntries = !reset;
 
-
-    sycl::event event = queue.submit([&](handler& h) {
+    sycl::event event = queue.submit([&](handler &h) {
         auto local_b = local_accessor<conf::fp_type, 1>(conf::workGroupSize, h);
 
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             // row i in the matrix
             const int i = nd_item.get_global_id() + blockStart_i * matrixBlockSize;
 
@@ -130,8 +143,9 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_GPU(sycl::queue& queue, co
                 resultValue += result[i];
             }
 
-            // First step: Process all matrix blocks up to the diagonal block (included) or the most left block that should be processed
-            // the blocks can be interpreted as they are stored in memory
+            // First step: Process all matrix blocks up to the diagonal block (included) or the most
+            // left block that should be processed the blocks can be interpreted as they are stored
+            // in memory
             for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1); ++block_j) {
                 // number of blocks in row to the right (if matrix would be full)
                 const int block_j_inv = blockCountXY - (block_j + 1);
@@ -142,13 +156,17 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_GPU(sycl::queue& queue, co
                 // id of block in the matrix data structure for symmetric matrices
                 blockID = block_i + referenceBlockCount - columnBlocksToRight;
 
-                // startIndex of the current block with blockID in the symmetric matrix data structure
-                std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
-                std::size_t rowStartIndex = blockStartIndex + static_cast<std::size_t>(iInBlock) * matrixBlockSize;
+                // startIndex of the current block with blockID in the symmetric matrix data
+                // structure
+                std::size_t blockStartIndex =
+                    static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
+                std::size_t rowStartIndex =
+                    blockStartIndex + static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
                 // cache part of rhs b in local memory
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
-                local_b[nd_item.get_local_id()] = b[block_j * matrixBlockSize + nd_item.get_local_id()];
+                local_b[nd_item.get_local_id()] =
+                    b[block_j * matrixBlockSize + nd_item.get_local_id()];
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
 
                 // go through all columns of the block and compute the matrix vector product
@@ -157,27 +175,32 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_GPU(sycl::queue& queue, co
                 }
             }
 
-
             // Second step: Process all matrix blocks after the diagonal block
-            // the blocks have to be interpreted as transposed, since the upper triangle is not stored explicitly
+            // the blocks have to be interpreted as transposed, since the upper triangle is not
+            // stored explicitly
             for (; block_j < blockStart_j + blockCount_j; ++block_j) {
-                // same block ID calculation as previously, but now block_i and block_j have to be swapped due to symmetries
+                // same block ID calculation as previously, but now block_i and block_j have to be
+                // swapped due to symmetries
                 const int block_i_inv = blockCountXY - (block_i + 1);
                 const int columnBlocksToRight = (block_i_inv * (block_i_inv + 1)) / 2;
 
                 // id of block in the matrix data structure for symmetric matrices
                 blockID = block_j + referenceBlockCount - columnBlocksToRight;
 
-                // startIndex of the current block with blockID in the symmetric matrix data structure
-                const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
+                // startIndex of the current block with blockID in the symmetric matrix data
+                // structure
+                const std::size_t blockStartIndex =
+                    static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
 
                 // cache part of rhs b in local memory
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
-                local_b[nd_item.get_local_id()] = b[block_j * matrixBlockSize + nd_item.get_local_id()];
+                local_b[nd_item.get_local_id()] =
+                    b[block_j * matrixBlockSize + nd_item.get_local_id()];
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
 
                 // go through all columns of the block and compute the matrix vector product
-                // the block in storage now has to be interpreted as transposed since we are working on the data of the symmetric block
+                // the block in storage now has to be interpreted as transposed since we are working
+                // on the data of the symmetric block
                 for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
                     resultValue += A[blockStartIndex + j * matrixBlockSize + iInBlock] * local_b[j];
                 }
@@ -191,7 +214,10 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_GPU(sycl::queue& queue, co
     return event;
 }
 
-sycl::event MatrixVectorOperations::matrixVectorBlock_CPU(sycl::queue& queue, const conf::fp_type* A, const conf::fp_type* b, conf::fp_type* result, const int blockStart_i, const int blockStart_j, const int blockCount_i, const int blockCount_j, const int blockCountXY, const bool reset) {
+sycl::event MatrixVectorOperations::matrixVectorBlock_CPU(
+    sycl::queue &queue, const conf::fp_type *A, const conf::fp_type *b, conf::fp_type *result,
+    const int blockStart_i, const int blockStart_j, const int blockCount_i, const int blockCount_j,
+    const int blockCountXY, const bool reset) {
     // global range corresponds to number of rows in the (sub) matrix
     const std::size_t globalRange = blockCount_i * conf::matrixBlockSize;
     const auto kernelRange = range{globalRange};
@@ -200,9 +226,8 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_CPU(sycl::queue& queue, co
 
     const bool addToPreviousEntries = !reset;
 
-
-    sycl::event event = queue.submit([&](handler& h) {
-        h.parallel_for(kernelRange, [=](auto& id) {
+    sycl::event event = queue.submit([&](handler &h) {
+        h.parallel_for(kernelRange, [=](auto &id) {
             // row i in the matrix
             const int i = id[0] + blockStart_i * matrixBlockSize;
 
@@ -226,8 +251,9 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_CPU(sycl::queue& queue, co
                 resultValue += result[i];
             }
 
-            // First step: Process all matrix blocks up to the diagonal block (included) or the most left block that should be processed
-            // the blocks can be interpreted as they are stored in memory
+            // First step: Process all matrix blocks up to the diagonal block (included) or the most
+            // left block that should be processed the blocks can be interpreted as they are stored
+            // in memory
             for (; block_j <= min(block_i, blockStart_j + blockCount_j - 1); ++block_j) {
                 // number of blocks in row to the right (if matrix would be full)
                 const int block_j_inv = blockCountXY - (block_j + 1);
@@ -238,9 +264,12 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_CPU(sycl::queue& queue, co
                 // id of block in the matrix data structure for symmetric matrices
                 blockID = block_i + referenceBlockCount - columnBlocksToRight;
 
-                // startIndex of the current block with blockID in the symmetric matrix data structure
-                std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
-                std::size_t rowStartIndex = blockStartIndex + static_cast<std::size_t>(iInBlock) * matrixBlockSize;
+                // startIndex of the current block with blockID in the symmetric matrix data
+                // structure
+                std::size_t blockStartIndex =
+                    static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
+                std::size_t rowStartIndex =
+                    blockStartIndex + static_cast<std::size_t>(iInBlock) * matrixBlockSize;
 
                 // go through all columns of the block and compute the matrix vector product
 #pragma clang loop vectorize(enable)
@@ -249,25 +278,30 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_CPU(sycl::queue& queue, co
                 }
             }
 
-
             // Second step: Process all matrix blocks after the diagonal block
-            // the blocks have to be interpreted as transposed, since the upper triangle is not stored explicitly
+            // the blocks have to be interpreted as transposed, since the upper triangle is not
+            // stored explicitly
             for (; block_j < blockStart_j + blockCount_j; ++block_j) {
-                // same block ID calculation as previously, but now block_i and block_j have to be swapped due to symmetries
+                // same block ID calculation as previously, but now block_i and block_j have to be
+                // swapped due to symmetries
                 const int block_i_inv = blockCountXY - (block_i + 1);
                 const int columnBlocksToRight = (block_i_inv * (block_i_inv + 1)) / 2;
 
                 // id of block in the matrix data structure for symmetric matrices
                 blockID = block_j + referenceBlockCount - columnBlocksToRight;
 
-                // startIndex of the current block with blockID in the symmetric matrix data structure
-                const size_t blockStartIndex = static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
+                // startIndex of the current block with blockID in the symmetric matrix data
+                // structure
+                const size_t blockStartIndex =
+                    static_cast<std::size_t>(blockID) * matrixBlockSize * matrixBlockSize;
 
                 // go through all columns of the block and compute the matrix vector product
-                // the block in storage now has to be interpreted as transposed since we are working on the data of the symmetric block
+                // the block in storage now has to be interpreted as transposed since we are working
+                // on the data of the symmetric block
 #pragma clang loop vectorize(enable)
                 for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
-                    resultValue += A[blockStartIndex + j * matrixBlockSize + iInBlock] * b[block_j * matrixBlockSize + j];
+                    resultValue += A[blockStartIndex + j * matrixBlockSize + iInBlock] *
+                                   b[block_j * matrixBlockSize + j];
                 }
             }
 
@@ -279,24 +313,29 @@ sycl::event MatrixVectorOperations::matrixVectorBlock_CPU(sycl::queue& queue, co
     return event;
 }
 
-sycl::event MatrixVectorOperations::triangularSolveBlockVector(sycl::queue& queue, conf::fp_type* A, conf::fp_type* b, const int blockRow, const int blockID, const bool transposed) {
+sycl::event MatrixVectorOperations::triangularSolveBlockVector(sycl::queue &queue, conf::fp_type *A,
+                                                               conf::fp_type *b, const int blockRow,
+                                                               const int blockID,
+                                                               const bool transposed) {
     // one work-group, one work-item per entry in b
     const range globalRange(conf::matrixBlockSize);
     const range localRange(conf::matrixBlockSize);
     const auto kernelRange = nd_range{globalRange, localRange};
 
-    const std::size_t matrixBlockSize =conf::matrixBlockSize;
+    const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
+    const std::size_t blockStartIndex =
+        static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
 
     const std::size_t N = conf::N;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             int local_i = nd_item.get_local_id(0);
 
             // block in the vector b where the results are written
-            const std::size_t blockStartIndex_B = static_cast<std::size_t>(blockRow) * matrixBlockSize;
+            const std::size_t blockStartIndex_B =
+                static_cast<std::size_t>(blockRow) * matrixBlockSize;
 
             const std::size_t blockStartIndex_L = blockStartIndex;
 
@@ -307,7 +346,8 @@ sycl::event MatrixVectorOperations::triangularSolveBlockVector(sycl::queue& queu
                 }
 
                 // b_k = b_k/a_kk
-                const conf::fp_type b_k = b[blockStartIndex_B + k] / A[blockStartIndex_L + k * matrixBlockSize + k];
+                const conf::fp_type b_k =
+                    b[blockStartIndex_B + k] / A[blockStartIndex_L + k * matrixBlockSize + k];
 
                 nd_item.barrier();
 
@@ -320,9 +360,13 @@ sycl::event MatrixVectorOperations::triangularSolveBlockVector(sycl::queue& queu
                 if (condition && blockStartIndex_B + k < N) {
                     // b_i = b_i - a_ik*b_k
                     if (!transposed) {
-                        b[blockStartIndex_B + local_i] = b[blockStartIndex_B + local_i] - A[blockStartIndex_L + local_i * matrixBlockSize + k] * b_k;
+                        b[blockStartIndex_B + local_i] =
+                            b[blockStartIndex_B + local_i] -
+                            A[blockStartIndex_L + local_i * matrixBlockSize + k] * b_k;
                     } else {
-                        b[blockStartIndex_B + local_i] = b[blockStartIndex_B + local_i] - A[blockStartIndex_L + k * matrixBlockSize + local_i] * b_k;
+                        b[blockStartIndex_B + local_i] =
+                            b[blockStartIndex_B + local_i] -
+                            A[blockStartIndex_L + k * matrixBlockSize + local_i] * b_k;
                     }
                 }
 
@@ -334,7 +378,12 @@ sycl::event MatrixVectorOperations::triangularSolveBlockVector(sycl::queue& queu
     return event;
 }
 
-sycl::event MatrixVectorOperations::matrixVectorColumnUpdate(sycl::queue& queue, conf::fp_type* A, conf::fp_type* b, const int blockStart, const int blockCount, const int blockRow, const int blockID, int blockCountXY, const bool transposed) {
+sycl::event MatrixVectorOperations::matrixVectorColumnUpdate(sycl::queue &queue, conf::fp_type *A,
+                                                             conf::fp_type *b, const int blockStart,
+                                                             const int blockCount,
+                                                             const int blockRow, const int blockID,
+                                                             int blockCountXY,
+                                                             const bool transposed) {
     // one work-group per block in column
     const range globalRange(blockCount * conf::matrixBlockSize);
     const range localRange(conf::matrixBlockSize);
@@ -342,31 +391,44 @@ sycl::event MatrixVectorOperations::matrixVectorColumnUpdate(sycl::queue& queue,
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
+    const std::size_t blockStartIndex =
+        static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
     const int totalBlockCount = blockCountXY * (blockCountXY + 1) / 2;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             int local_i = nd_item.get_local_id(0);
             const int group_id = nd_item.get_group().get_group_id(0);
 
             // block in the vector b used for the update
-            const std::size_t blockStartIndex_b_0 = static_cast<std::size_t>(blockRow) * matrixBlockSize;
+            const std::size_t blockStartIndex_b_0 =
+                static_cast<std::size_t>(blockRow) * matrixBlockSize;
 
             // block in the vector b where the results are written
-            const std::size_t blockStartIndex_b_i = static_cast<std::size_t>(blockStart + group_id) * matrixBlockSize;
+            const std::size_t blockStartIndex_b_i =
+                static_cast<std::size_t>(blockStart + group_id) * matrixBlockSize;
 
             // block in the matrix used for the update
-            const std::size_t blockStartIndex_Aij = (!transposed) ? blockStartIndex + static_cast<std::size_t>(blockStart - blockRow + group_id) * matrixBlockSize * matrixBlockSize : (totalBlockCount - static_cast<std::size_t>((blockCountXY - group_id - blockStart) * (blockCountXY - group_id - blockStart + 1) / 2) + blockRow - group_id - blockStart) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_Aij =
+                (!transposed)
+                    ? blockStartIndex + static_cast<std::size_t>(blockStart - blockRow + group_id) *
+                                            matrixBlockSize * matrixBlockSize
+                    : (totalBlockCount -
+                       static_cast<std::size_t>((blockCountXY - group_id - blockStart) *
+                                                (blockCountXY - group_id - blockStart + 1) / 2) +
+                       blockRow - group_id - blockStart) *
+                          matrixBlockSize * matrixBlockSize;
 
             conf::fp_type sum = 0.0;
             if (!transposed) {
                 for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-                    sum += A[blockStartIndex_Aij + local_i * matrixBlockSize + k] * b[blockStartIndex_b_0 + k];
+                    sum += A[blockStartIndex_Aij + local_i * matrixBlockSize + k] *
+                           b[blockStartIndex_b_0 + k];
                 }
             } else {
                 for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-                    sum += A[blockStartIndex_Aij + k * matrixBlockSize + local_i] * b[blockStartIndex_b_0 + k];
+                    sum += A[blockStartIndex_Aij + k * matrixBlockSize + local_i] *
+                           b[blockStartIndex_b_0 + k];
                 }
             }
             b[blockStartIndex_b_i + local_i] -= sum;
@@ -376,14 +438,18 @@ sycl::event MatrixVectorOperations::matrixVectorColumnUpdate(sycl::queue& queue,
     return event;
 }
 
-sycl::event MatrixVectorOperations::matrixVectorGP(sycl::queue& queue, conf::fp_type* A, conf::fp_type* b, conf::fp_type* result, int n, int m) {
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(m, [=](auto& id) {
+sycl::event MatrixVectorOperations::matrixVectorGP(sycl::queue &queue, conf::fp_type *A,
+                                                   conf::fp_type *b, conf::fp_type *result, int n,
+                                                   int m) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(m, [=](auto &id) {
             const unsigned int i = id[0];
 
             conf::fp_type sum = 0.0;
             for (int k = 0; k < n; ++k) {
-                sum += A[static_cast<std::size_t>(i) * static_cast<std::size_t>(n) + static_cast<std::size_t>(k)] * b[k];
+                sum += A[static_cast<std::size_t>(i) * static_cast<std::size_t>(n) +
+                         static_cast<std::size_t>(k)] *
+                       b[k];
             }
             result[i] = sum;
         });
