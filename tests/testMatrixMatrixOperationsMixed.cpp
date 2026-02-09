@@ -1350,676 +1350,676 @@ public:
 // clang-format on
 
 TEST_F(TriangularSolveMixedTest, triangularSolveTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
-                                               A.blockByteOffsets.data(), 0, 0, 1, 4);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
+                                                 A.blockByteOffsets.data(), 0, 0, 1, 4);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, triangularSolveLowerMatrixTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
-                                               A.blockByteOffsets.data(), 0, 0, 3, 2);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
+                                                 A.blockByteOffsets.data(), 0, 0, 3, 2);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_lower_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_lower_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_lower_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_lower_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, triangularSolveTest_Padding) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 6;
-  conf::workGroupSize = 6;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 6;
+    conf::workGroupSize = 6;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
-                                               A.blockByteOffsets.data(), 0, 0, 1, 3);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
+                                                 A.blockByteOffsets.data(), 0, 0, 1, 3);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full_column_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full_column_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full_column_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full_column_padding[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, triangularSolveMidColumnTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
-                                               A.blockByteOffsets.data(), 5, 1, 2, 3);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
+                                                 A.blockByteOffsets.data(), 5, 1, 2, 3);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_mid_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_mid_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_mid_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_mid_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, triangularSolveMidColumnLowerTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
-                                               A.blockByteOffsets.data(), 5, 1, 3, 2);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve(queue, matrixTyped, A.precisionTypes.data(),
+                                                 A.blockByteOffsets.data(), 5, 1, 3, 2);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_mid_column_lower.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_mid_column_lower[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_mid_column_lower.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_mid_column_lower[i], 1e-12);
+    }
 }
 
 // GPU optimized kernel
 
 TEST_F(TriangularSolveMixedTest, GPUtriangularSolveTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 4);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 4);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, GPUtriangularSolveLowerMatrixTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_lower_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_lower_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_lower_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_lower_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, GPUtriangularSolveTest_Padding) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 6;
-  conf::workGroupSize = 6;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 6;
+    conf::workGroupSize = 6;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 3);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 3);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full_column_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full_column_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full_column_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full_column_padding[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, GPUtriangularSolveMidColumnTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 2, 3);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 2, 3);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_mid_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_mid_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_mid_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_mid_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, GPUtriangularSolveMidColumnLowerTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 3, 2);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 3, 2);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_mid_column_lower.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_mid_column_lower[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_mid_column_lower.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_mid_column_lower[i], 1e-12);
+    }
 }
 
 // CPU optimized kernels
 
 TEST_F(TriangularSolveMixedTest, CPUtriangularSolveTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 4);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 4);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, CPUtriangularSolveLowerMatrixTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_lower_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_lower_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_lower_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_lower_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, CPUtriangularSolveTest_Padding) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 6;
-  conf::workGroupSize = 6;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 6;
+    conf::workGroupSize = 6;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 3);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1, 3);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full_column_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full_column_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full_column_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full_column_padding[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, CPUtriangularSolveMidColumnTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 2, 3);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 2, 3);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_mid_column.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_mid_column[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_mid_column.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_mid_column[i], 1e-12);
+    }
 }
 
 TEST_F(TriangularSolveMixedTest, CPUtriangularSolveMidColumnLowerTest) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
-  queue.wait();
-  MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 3, 2);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, A.blockByteOffsets[5], 1);
+    queue.wait();
+    MatrixMatrixOperationsMixed::triangularSolve_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 3, 2);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_mid_column_lower.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_mid_column_lower[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_mid_column_lower.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_mid_column_lower[i], 1e-12);
+    }
 }
 
 // SYRK tests
 TEST_F(SYRKMixedTest, syrkFullDiagonalExceptFirstBlock) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  // MatrixParserMixed::writeBlockedMatrix("AOutPre.txt", A);
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
-      A.blockCountXY - 1, A.blockCountXY);
-  queue.wait();
-  // MatrixParserMixed::writeBlockedMatrix("AOutPost.txt", A);
+    // MatrixParserMixed::writeBlockedMatrix("AOutPre.txt", A);
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
+        A.blockCountXY - 1, A.blockCountXY);
+    queue.wait();
+    // MatrixParserMixed::writeBlockedMatrix("AOutPost.txt", A);
 
-  for (size_t i = 0; i < reference_syrk_full.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_full[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_full.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_full[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkLowerDiagonal) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2,
-      A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_lower.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_lower[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_lower.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_lower[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkLowerDiagonal2) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 9, 2, 3, 2,
-      A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 9, 2, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_lower2.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_lower2[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_lower2.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_lower2[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkPadding) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 9;
-  conf::workGroupSize = 9;
-  conf::workGroupSizeGEMM_xy = 3;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 9;
+    conf::workGroupSize = 9;
+    conf::workGroupSizeGEMM_xy = 3;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
-      A.blockCountXY - 1, A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
+        A.blockCountXY - 1, A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_padding[i], 1e-12);
+    }
 }
 
 // SYRK test GPU optimized kernels
 TEST_F(SYRKMixedTest, syrkFullDiagonalExceptFirstBlock_optimizedGPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
-      A.blockCountXY - 1, A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
+        A.blockCountXY - 1, A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_full.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_full[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_full.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_full[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkLowerDiagonal_optimizedGPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2,
-      A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_lower.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_lower[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_lower.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_lower[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkLowerDiagonal2_optimizedGPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 9, 2, 3, 2,
-      A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 9, 2, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_lower2.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_lower2[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_lower2.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_lower2[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkPadding_optimizedGPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 9;
-  conf::workGroupSize = 9;
-  conf::workGroupSizeGEMM_xy = 3;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 9;
+    conf::workGroupSize = 9;
+    conf::workGroupSizeGEMM_xy = 3;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
-      A.blockCountXY - 1, A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedGPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
+        A.blockCountXY - 1, A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_padding[i], 1e-12);
+    }
 }
 
 // CPU optimized kernel
 TEST_F(SYRKMixedTest, syrkFullDiagonalExceptFirstBlock_optimizedCPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
-      A.blockCountXY - 1, A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
+        A.blockCountXY - 1, A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_full.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_full[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_full.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_full[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkLowerDiagonal_optimizedCPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2,
-      A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_lower.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_lower[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_lower.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_lower[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkLowerDiagonal2_optimizedCPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 9, 2, 3, 2,
-      A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 9, 2, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_lower2.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_lower2[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_lower2.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_lower2[i], 1e-12);
+    }
 }
 
 TEST_F(SYRKMixedTest, syrkPadding_optimizedCPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 9;
-  conf::workGroupSize = 9;
-  conf::workGroupSizeGEMM_xy = 3;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 9;
+    conf::workGroupSize = 9;
+    conf::workGroupSizeGEMM_xy = 3;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
-      queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
-      A.blockCountXY - 1, A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::symmetricMatrixMatrixDiagonal_optimizedCPU(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 1,
+        A.blockCountXY - 1, A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_syrk_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_syrk_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_syrk_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_syrk_padding[i], 1e-12);
+    }
 }
 
 // GEMM kernel tests
 
 TEST_F(GEMMMixedTest, gemmFullLowerBlockTriangle) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::matrixMatrixStep(queue, A.matrixData.data(), A.precisionTypes.data(),
-                                                A.blockByteOffsets.data(), 0, 0, 2,
-                                                A.blockCountXY - 2, A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::matrixMatrixStep(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 2,
+        A.blockCountXY - 2, A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_gemm_full_lower_triangle.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_gemm_full_lower_triangle[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_gemm_full_lower_triangle.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_gemm_full_lower_triangle[i], 1e-12);
+    }
 }
 
 TEST_F(GEMMMixedTest, gemmUpperLowerBlockTriangle) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::matrixMatrixStep(queue, A.matrixData.data(), A.precisionTypes.data(),
-                                                A.blockByteOffsets.data(), 0, 0, 2, 2,
-                                                A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::matrixMatrixStep(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 2, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_gemm_upper_lower_triangle.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_gemm_upper_lower_triangle[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_gemm_upper_lower_triangle.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_gemm_upper_lower_triangle[i], 1e-12);
+    }
 }
 
 TEST_F(GEMMMixedTest, gemmLowerLowerBlockTriangle) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::matrixMatrixStep(queue, A.matrixData.data(), A.precisionTypes.data(),
-                                                A.blockByteOffsets.data(), 0, 0, 3, 2,
-                                                A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::matrixMatrixStep(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 0, 0, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_gemm_lower_lower_triangle.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_gemm_lower_lower_triangle[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_gemm_lower_lower_triangle.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_gemm_lower_lower_triangle[i], 1e-12);
+    }
 }
 
 // gemm tests with smaller triangle to the right
 
 TEST_F(GEMMMixedTest, gemmFullLowerBlockTriangle2) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::matrixMatrixStep(queue, A.matrixData.data(), A.precisionTypes.data(),
-                                                A.blockByteOffsets.data(), 5, 1, 3, 2,
-                                                A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::matrixMatrixStep(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 3, 2,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_gemm_full_lower_triangle2.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_gemm_full_lower_triangle2[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_gemm_full_lower_triangle2.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_gemm_full_lower_triangle2[i], 1e-12);
+    }
 }
 
 TEST_F(GEMMMixedTest, gemmUpperLowerBlockTriangle2) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::matrixMatrixStep(queue, A.matrixData.data(), A.precisionTypes.data(),
-                                                A.blockByteOffsets.data(), 5, 1, 3, 1,
-                                                A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::matrixMatrixStep(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 3, 1,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_gemm_upper_lower_triangle2.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_gemm_upper_lower_triangle2[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_gemm_upper_lower_triangle2.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_gemm_upper_lower_triangle2[i], 1e-12);
+    }
 }
 
 TEST_F(GEMMMixedTest, gemmLowerLowerBlockTriangle2) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  conf::workGroupSizeGEMM_xy = 2;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    conf::workGroupSizeGEMM_xy = 2;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixMatrixOperationsMixed::matrixMatrixStep(queue, A.matrixData.data(), A.precisionTypes.data(),
-                                                A.blockByteOffsets.data(), 5, 1, 4, 1,
-                                                A.blockCountXY);
-  queue.wait();
+    MatrixMatrixOperationsMixed::matrixMatrixStep(
+        queue, A.matrixData.data(), A.precisionTypes.data(), A.blockByteOffsets.data(), 5, 1, 4, 1,
+        A.blockCountXY);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_gemm_lower_lower_triangle2.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_gemm_lower_lower_triangle2[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_gemm_lower_lower_triangle2.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_gemm_lower_lower_triangle2[i], 1e-12);
+    }
 }
 
 // with padding

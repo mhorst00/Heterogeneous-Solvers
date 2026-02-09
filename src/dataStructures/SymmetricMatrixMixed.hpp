@@ -36,40 +36,41 @@
  *
  */
 class SymmetricMatrixMixed {
-public:
-  /**
-   * Constructor of the class.
-   * Automatically resizes the vector matrixData to the correct size.
-   *
-   * @param N dimension N of the NxN symmetric matrix
-   * @param blockSize the block size of the blocks the matrix is divided in for
-   * storage
-   * @param queue SYCL queue for allocating memory
-   */
-  SymmetricMatrixMixed(std::size_t N, const int blockSize, sycl::queue &queue);
+  public:
+    /**
+     * Constructor of the class.
+     * Automatically resizes the vector matrixData to the correct size.
+     *
+     * @param N dimension N of the NxN symmetric matrix
+     * @param blockSize the block size of the blocks the matrix is divided in for
+     * storage
+     * @param queue SYCL queue for allocating memory
+     */
+    SymmetricMatrixMixed(std::size_t N, const int blockSize, sycl::queue &queue);
 
-  // Size N of the NxN symmetric matrix
-  const std::size_t N;
-  // The matrix will be partitioned in blockSize x blockSize blocks
-  const int blockSize;
-  // block Count in X/Y direction (if the matrix would be stored completely)
-  const int blockCountXY;
-  // block counts
-  std::size_t blockCountFP16;
-  std::size_t blockCountFP32;
-  std::size_t blockCountFP64;
-  // SYCL shared memory containing array of precision per block in block order
-  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> precisionTypes;
-  // SYCL shared memory containing array of rank per block in block order
-  std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> blockRanks;
-  // SYCL shared memory containing array of byte offset until current block
-  std::vector<std::size_t, sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>>
-      blockByteOffsets;
+    // Size N of the NxN symmetric matrix
+    const std::size_t N;
+    // The matrix will be partitioned in blockSize x blockSize blocks
+    const int blockSize;
+    // block Count in X/Y direction (if the matrix would be stored completely)
+    const int blockCountXY;
+    // block counts
+    std::size_t blockCountFP16;
+    std::size_t blockCountFP32;
+    std::size_t blockCountFP64;
+    // SYCL shared memory containing array of precision per block in block order
+    std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> precisionTypes;
+    // SYCL shared memory containing array of rank per block in block order
+    std::vector<int, sycl::usm_allocator<int, sycl::usm::alloc::shared>> blockRanks;
+    // SYCL shared memory containing array of byte offset until current block
+    std::vector<std::size_t, sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>>
+        blockByteOffsets;
 
-  /// internal matrix data structure allocated as SYCL host memory
-  std::vector<unsigned char, sycl::usm_allocator<unsigned char, sycl::usm::alloc::host>> matrixData;
+    /// internal matrix data structure allocated as SYCL host memory
+    std::vector<unsigned char, sycl::usm_allocator<unsigned char, sycl::usm::alloc::host>>
+        matrixData;
 
-  void allocate(size_t total_bytes);
+    void allocate(size_t total_bytes);
 };
 
 #endif // SYMMETRICMATRIXMIXED_HPP

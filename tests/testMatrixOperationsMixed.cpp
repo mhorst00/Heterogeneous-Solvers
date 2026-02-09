@@ -148,505 +148,505 @@ protected:
 // clang-format on
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelFullMatrix) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 20;
-  conf::workGroupSize = 20;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 20;
+    conf::workGroupSize = 20;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full[i], 1e-12);
+    }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelFullMatrixPadding) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 24;
-  conf::workGroupSize = 24;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 24;
+    conf::workGroupSize = 24;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
 
-  MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
-  queue.wait();
+    MatrixOperationsMixed::cholesky(queue, matrixTyped, 0, 0);
+    queue.wait();
 
-  // EXPECT_EQ(A.matrixData.size(), reference_padding.size());
+    // EXPECT_EQ(A.matrixData.size(), reference_padding.size());
 
-  for (size_t i = 0; i < reference_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_padding[i], 1e-12);
+    }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelDiagBlock) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  if (A.precisionTypes[5] == 2) {
-    sycl::half *block5 = reinterpret_cast<sycl::half *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky(queue, block5, A.blockByteOffsets[5], 1);
-  } else if (A.precisionTypes[5] == 4) {
-    float *block5 = reinterpret_cast<float *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky(queue, block5, A.blockByteOffsets[5], 1);
-  } else if (A.precisionTypes[5] == 8) {
-    double *block5 = reinterpret_cast<double *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky(queue, block5, A.blockByteOffsets[5], 1);
-  }
-  queue.wait();
-
-  std::vector<conf::fp_type> reference_A11 = {1.9553671036635423,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              -0.3029756191673789,
-                                              0.7100998561677417,
-                                              0.,
-                                              0.,
-                                              0.787410298394586,
-                                              -0.06799311275526938,
-                                              0.7601889142959711,
-                                              0.,
-                                              0.4797797274851484,
-                                              0.09254516463315143,
-                                              0.05994172521675433,
-                                              0.633768593174752
-
-  };
-
-  if (A.precisionTypes[5] == 2) {
-    sycl::half *block5 =
-        reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+    if (A.precisionTypes[5] == 2) {
+        sycl::half *block5 = reinterpret_cast<sycl::half *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky(queue, block5, A.blockByteOffsets[5], 1);
+    } else if (A.precisionTypes[5] == 4) {
+        float *block5 = reinterpret_cast<float *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky(queue, block5, A.blockByteOffsets[5], 1);
+    } else if (A.precisionTypes[5] == 8) {
+        double *block5 = reinterpret_cast<double *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky(queue, block5, A.blockByteOffsets[5], 1);
     }
-  } else if (A.precisionTypes[5] == 4) {
-    float *block5 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+    queue.wait();
+
+    std::vector<conf::fp_type> reference_A11 = {1.9553671036635423,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                -0.3029756191673789,
+                                                0.7100998561677417,
+                                                0.,
+                                                0.,
+                                                0.787410298394586,
+                                                -0.06799311275526938,
+                                                0.7601889142959711,
+                                                0.,
+                                                0.4797797274851484,
+                                                0.09254516463315143,
+                                                0.05994172521675433,
+                                                0.633768593174752
+
+    };
+
+    if (A.precisionTypes[5] == 2) {
+        sycl::half *block5 =
+            reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
+    } else if (A.precisionTypes[5] == 4) {
+        float *block5 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
+    } else if (A.precisionTypes[5] == 8) {
+        double *block5 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
     }
-  } else if (A.precisionTypes[5] == 8) {
-    double *block5 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
-    }
-  }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelDiagBlockPadding) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 6;
-  conf::workGroupSize = 6;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 6;
+    conf::workGroupSize = 6;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  if (A.precisionTypes[9] == 2) {
-    sycl::half *block9 = reinterpret_cast<sycl::half *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky(queue, block9, A.blockByteOffsets[9], 3);
-  } else if (A.precisionTypes[9] == 4) {
-    float *block9 = reinterpret_cast<float *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky(queue, block9, A.blockByteOffsets[9], 3);
-  } else if (A.precisionTypes[9] == 8) {
-    double *block9 = reinterpret_cast<double *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky(queue, block9, A.blockByteOffsets[9], 3);
-  }
-  queue.wait();
+    if (A.precisionTypes[9] == 2) {
+        sycl::half *block9 = reinterpret_cast<sycl::half *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky(queue, block9, A.blockByteOffsets[9], 3);
+    } else if (A.precisionTypes[9] == 4) {
+        float *block9 = reinterpret_cast<float *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky(queue, block9, A.blockByteOffsets[9], 3);
+    } else if (A.precisionTypes[9] == 8) {
+        double *block9 = reinterpret_cast<double *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky(queue, block9, A.blockByteOffsets[9], 3);
+    }
+    queue.wait();
 
-  std::vector<conf::fp_type> reference_A44 = {0.6492026636711377,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              -0.1019473771980525,
-                                              0.7800118292993728,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.};
+    std::vector<conf::fp_type> reference_A44 = {0.6492026636711377,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                -0.1019473771980525,
+                                                0.7800118292993728,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.};
 
-  if (A.precisionTypes[9] == 2) {
-    sycl::half *block9 =
-        reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+    if (A.precisionTypes[9] == 2) {
+        sycl::half *block9 =
+            reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
+    } else if (A.precisionTypes[9] == 4) {
+        float *block9 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
+    } else if (A.precisionTypes[9] == 8) {
+        double *block9 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
     }
-  } else if (A.precisionTypes[9] == 4) {
-    float *block9 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
-    }
-  } else if (A.precisionTypes[9] == 8) {
-    double *block9 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
-    }
-  }
 }
 
 // tests for GPU version
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelFullMatrix_GPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 20;
-  conf::workGroupSize = 20;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 20;
+    conf::workGroupSize = 20;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
-  MatrixOperationsMixed::cholesky_GPU(queue, matrixTyped, 0, 0);
-  queue.wait();
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    MatrixOperationsMixed::cholesky_GPU(queue, matrixTyped, 0, 0);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full[i], 1e-12);
+    }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelFullMatrixPadding_GPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 24;
-  conf::workGroupSize = 24;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 24;
+    conf::workGroupSize = 24;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
-  MatrixOperationsMixed::cholesky_GPU(queue, matrixTyped, 0, 0);
-  queue.wait();
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    MatrixOperationsMixed::cholesky_GPU(queue, matrixTyped, 0, 0);
+    queue.wait();
 
-  // EXPECT_EQ(A.matrixData.size(), reference_padding.size());
+    // EXPECT_EQ(A.matrixData.size(), reference_padding.size());
 
-  for (size_t i = 0; i < reference_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_padding[i], 1e-12);
+    }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelDiagBlock_GPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  if (A.precisionTypes[5] == 2) {
-    sycl::half *block5 = reinterpret_cast<sycl::half *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_GPU(queue, block5, A.blockByteOffsets[5], 1);
-  } else if (A.precisionTypes[5] == 4) {
-    float *block5 = reinterpret_cast<float *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_GPU(queue, block5, A.blockByteOffsets[5], 1);
-  } else if (A.precisionTypes[5] == 8) {
-    double *block5 = reinterpret_cast<double *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_GPU(queue, block5, A.blockByteOffsets[5], 1);
-  }
-  queue.wait();
-
-  std::vector<conf::fp_type> reference_A11 = {1.9553671036635423,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              -0.3029756191673789,
-                                              0.7100998561677417,
-                                              0.,
-                                              0.,
-                                              0.787410298394586,
-                                              -0.06799311275526938,
-                                              0.7601889142959711,
-                                              0.,
-                                              0.4797797274851484,
-                                              0.09254516463315143,
-                                              0.05994172521675433,
-                                              0.633768593174752
-
-  };
-
-  if (A.precisionTypes[5] == 2) {
-    sycl::half *block5 =
-        reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+    if (A.precisionTypes[5] == 2) {
+        sycl::half *block5 = reinterpret_cast<sycl::half *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_GPU(queue, block5, A.blockByteOffsets[5], 1);
+    } else if (A.precisionTypes[5] == 4) {
+        float *block5 = reinterpret_cast<float *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_GPU(queue, block5, A.blockByteOffsets[5], 1);
+    } else if (A.precisionTypes[5] == 8) {
+        double *block5 = reinterpret_cast<double *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_GPU(queue, block5, A.blockByteOffsets[5], 1);
     }
-  } else if (A.precisionTypes[5] == 4) {
-    float *block5 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+    queue.wait();
+
+    std::vector<conf::fp_type> reference_A11 = {1.9553671036635423,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                -0.3029756191673789,
+                                                0.7100998561677417,
+                                                0.,
+                                                0.,
+                                                0.787410298394586,
+                                                -0.06799311275526938,
+                                                0.7601889142959711,
+                                                0.,
+                                                0.4797797274851484,
+                                                0.09254516463315143,
+                                                0.05994172521675433,
+                                                0.633768593174752
+
+    };
+
+    if (A.precisionTypes[5] == 2) {
+        sycl::half *block5 =
+            reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
+    } else if (A.precisionTypes[5] == 4) {
+        float *block5 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
+    } else if (A.precisionTypes[5] == 8) {
+        double *block5 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
     }
-  } else if (A.precisionTypes[5] == 8) {
-    double *block5 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
-    }
-  }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelDiagBlockPadding_GPU) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 6;
-  conf::workGroupSize = 6;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 6;
+    conf::workGroupSize = 6;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  if (A.precisionTypes[9] == 2) {
-    sycl::half *block9 = reinterpret_cast<sycl::half *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_GPU(queue, block9, A.blockByteOffsets[9], 3);
-  } else if (A.precisionTypes[9] == 4) {
-    float *block9 = reinterpret_cast<float *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_GPU(queue, block9, A.blockByteOffsets[9], 3);
-  } else if (A.precisionTypes[9] == 8) {
-    double *block9 = reinterpret_cast<double *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_GPU(queue, block9, A.blockByteOffsets[9], 3);
-  }
-  queue.wait();
+    if (A.precisionTypes[9] == 2) {
+        sycl::half *block9 = reinterpret_cast<sycl::half *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_GPU(queue, block9, A.blockByteOffsets[9], 3);
+    } else if (A.precisionTypes[9] == 4) {
+        float *block9 = reinterpret_cast<float *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_GPU(queue, block9, A.blockByteOffsets[9], 3);
+    } else if (A.precisionTypes[9] == 8) {
+        double *block9 = reinterpret_cast<double *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_GPU(queue, block9, A.blockByteOffsets[9], 3);
+    }
+    queue.wait();
 
-  std::vector<conf::fp_type> reference_A44 = {0.6492026636711377,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              -0.1019473771980525,
-                                              0.7800118292993728,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.};
+    std::vector<conf::fp_type> reference_A44 = {0.6492026636711377,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                -0.1019473771980525,
+                                                0.7800118292993728,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.};
 
-  if (A.precisionTypes[9] == 2) {
-    sycl::half *block9 =
-        reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+    if (A.precisionTypes[9] == 2) {
+        sycl::half *block9 =
+            reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
+    } else if (A.precisionTypes[9] == 4) {
+        float *block9 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
+    } else if (A.precisionTypes[9] == 8) {
+        double *block9 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
     }
-  } else if (A.precisionTypes[9] == 4) {
-    float *block9 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
-    }
-  } else if (A.precisionTypes[9] == 8) {
-    double *block9 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
-    }
-  }
 }
 
 // GPU optimized cholesky
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelFullMatrix_GPU_optimized) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 20;
-  conf::workGroupSize = 20;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 20;
+    conf::workGroupSize = 20;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
-  MatrixOperationsMixed::cholesky_optimizedGPU(queue, matrixTyped, 0, 0);
-  queue.wait();
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    MatrixOperationsMixed::cholesky_optimizedGPU(queue, matrixTyped, 0, 0);
+    queue.wait();
 
-  for (size_t i = 0; i < reference_full.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_full[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_full.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_full[i], 1e-12);
+    }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelFullMatrixPadding_GPU_optimized) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 24;
-  conf::workGroupSize = 24;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 24;
+    conf::workGroupSize = 24;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
-  MatrixOperationsMixed::cholesky_optimizedGPU(queue, matrixTyped, 0, 0);
-  queue.wait();
+    conf::fp_type *matrixTyped = reinterpret_cast<conf::fp_type *>(A.matrixData.data());
+    MatrixOperationsMixed::cholesky_optimizedGPU(queue, matrixTyped, 0, 0);
+    queue.wait();
 
-  // EXPECT_EQ(A.matrixData.size(), reference_padding.size());
+    // EXPECT_EQ(A.matrixData.size(), reference_padding.size());
 
-  for (size_t i = 0; i < reference_padding.size(); i++) {
-    EXPECT_NEAR(matrixTyped[i], reference_padding[i], 1e-12);
-  }
+    for (size_t i = 0; i < reference_padding.size(); i++) {
+        EXPECT_NEAR(matrixTyped[i], reference_padding[i], 1e-12);
+    }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelDiagBlock_GPU_optimized) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 4;
-  conf::workGroupSize = 4;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 4;
+    conf::workGroupSize = 4;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  if (A.precisionTypes[5] == 2) {
-    sycl::half *block5 = reinterpret_cast<sycl::half *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_optimizedGPU(queue, block5, A.blockByteOffsets[5], 1);
-  } else if (A.precisionTypes[5] == 4) {
-    float *block5 = reinterpret_cast<float *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_optimizedGPU(queue, block5, A.blockByteOffsets[5], 1);
-  } else if (A.precisionTypes[5] == 8) {
-    double *block5 = reinterpret_cast<double *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_optimizedGPU(queue, block5, A.blockByteOffsets[5], 1);
-  }
-  queue.wait();
-
-  std::vector<conf::fp_type> reference_A11 = {1.9553671036635423,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              -0.3029756191673789,
-                                              0.7100998561677417,
-                                              0.,
-                                              0.,
-                                              0.787410298394586,
-                                              -0.06799311275526938,
-                                              0.7601889142959711,
-                                              0.,
-                                              0.4797797274851484,
-                                              0.09254516463315143,
-                                              0.05994172521675433,
-                                              0.633768593174752
-
-  };
-
-  if (A.precisionTypes[5] == 2) {
-    sycl::half *block5 =
-        reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+    if (A.precisionTypes[5] == 2) {
+        sycl::half *block5 = reinterpret_cast<sycl::half *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_optimizedGPU(queue, block5, A.blockByteOffsets[5], 1);
+    } else if (A.precisionTypes[5] == 4) {
+        float *block5 = reinterpret_cast<float *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_optimizedGPU(queue, block5, A.blockByteOffsets[5], 1);
+    } else if (A.precisionTypes[5] == 8) {
+        double *block5 = reinterpret_cast<double *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_optimizedGPU(queue, block5, A.blockByteOffsets[5], 1);
     }
-  } else if (A.precisionTypes[5] == 4) {
-    float *block5 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+    queue.wait();
+
+    std::vector<conf::fp_type> reference_A11 = {1.9553671036635423,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                -0.3029756191673789,
+                                                0.7100998561677417,
+                                                0.,
+                                                0.,
+                                                0.787410298394586,
+                                                -0.06799311275526938,
+                                                0.7601889142959711,
+                                                0.,
+                                                0.4797797274851484,
+                                                0.09254516463315143,
+                                                0.05994172521675433,
+                                                0.633768593174752
+
+    };
+
+    if (A.precisionTypes[5] == 2) {
+        sycl::half *block5 =
+            reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
+    } else if (A.precisionTypes[5] == 4) {
+        float *block5 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
+    } else if (A.precisionTypes[5] == 8) {
+        double *block5 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[5]);
+        for (size_t i = 0; i < reference_A11.size(); i++) {
+            EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
+        }
     }
-  } else if (A.precisionTypes[5] == 8) {
-    double *block5 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[5]);
-    for (size_t i = 0; i < reference_A11.size(); i++) {
-      EXPECT_NEAR(block5[i], reference_A11[i], 1e-12);
-    }
-  }
 }
 
 TEST_F(MatrixOperationsMixedTest, choleskyKernelDiagBlockPadding_GPU_optimized) {
-  queue queue(cpu_selector_v);
-  conf::matrixBlockSize = 6;
-  conf::workGroupSize = 6;
-  SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
-  queue.wait();
+    queue queue(cpu_selector_v);
+    conf::matrixBlockSize = 6;
+    conf::workGroupSize = 6;
+    SymmetricMatrixMixed A = MatrixParserMixed::parseSymmetricMatrix(path_A, queue);
+    queue.wait();
 
-  if (A.precisionTypes[9] == 2) {
-    sycl::half *block9 = reinterpret_cast<sycl::half *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_optimizedGPU(queue, block9, A.blockByteOffsets[9], 3);
-  } else if (A.precisionTypes[9] == 4) {
-    float *block9 = reinterpret_cast<float *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_optimizedGPU(queue, block9, A.blockByteOffsets[9], 3);
-  } else if (A.precisionTypes[9] == 8) {
-    double *block9 = reinterpret_cast<double *>(A.matrixData.data());
-    MatrixOperationsMixed::cholesky_optimizedGPU(queue, block9, A.blockByteOffsets[9], 3);
-  }
-  queue.wait();
+    if (A.precisionTypes[9] == 2) {
+        sycl::half *block9 = reinterpret_cast<sycl::half *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_optimizedGPU(queue, block9, A.blockByteOffsets[9], 3);
+    } else if (A.precisionTypes[9] == 4) {
+        float *block9 = reinterpret_cast<float *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_optimizedGPU(queue, block9, A.blockByteOffsets[9], 3);
+    } else if (A.precisionTypes[9] == 8) {
+        double *block9 = reinterpret_cast<double *>(A.matrixData.data());
+        MatrixOperationsMixed::cholesky_optimizedGPU(queue, block9, A.blockByteOffsets[9], 3);
+    }
+    queue.wait();
 
-  std::vector<conf::fp_type> reference_A44 = {0.6492026636711377,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              -0.1019473771980525,
-                                              0.7800118292993728,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.,
-                                              0.};
+    std::vector<conf::fp_type> reference_A44 = {0.6492026636711377,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                -0.1019473771980525,
+                                                0.7800118292993728,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.,
+                                                0.};
 
-  if (A.precisionTypes[9] == 2) {
-    sycl::half *block9 =
-        reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+    if (A.precisionTypes[9] == 2) {
+        sycl::half *block9 =
+            reinterpret_cast<sycl::half *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
+    } else if (A.precisionTypes[9] == 4) {
+        float *block9 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
+    } else if (A.precisionTypes[9] == 8) {
+        double *block9 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[9]);
+        for (size_t i = 0; i < reference_A44.size(); i++) {
+            EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
+        }
     }
-  } else if (A.precisionTypes[9] == 4) {
-    float *block9 = reinterpret_cast<float *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
-    }
-  } else if (A.precisionTypes[9] == 8) {
-    double *block9 = reinterpret_cast<double *>(A.matrixData.data() + A.blockByteOffsets[9]);
-    for (size_t i = 0; i < reference_A44.size(); i++) {
-      EXPECT_NEAR(block9[i], reference_A44[i], 1e-12);
-    }
-  }
 }

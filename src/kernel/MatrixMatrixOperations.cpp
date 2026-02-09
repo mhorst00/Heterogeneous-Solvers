@@ -2,7 +2,9 @@
 
 using namespace sycl;
 
-sycl::event MatrixMatrixOperations::triangularSolve(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount) {
+sycl::event MatrixMatrixOperations::triangularSolve(sycl::queue &queue, conf::fp_type *A,
+                                                    const int blockID, const int blockRow,
+                                                    const int blockStart, const int blockCount) {
     // one work-group per rhs
     const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
     const range localRange(conf::matrixBlockSize, 1);
@@ -10,10 +12,11 @@ sycl::event MatrixMatrixOperations::triangularSolve(sycl::queue& queue, conf::fp
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
+    const std::size_t blockStartIndex =
+        static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(0);
             const int group_id_i = nd_item.get_group().get_group_id(0);
             const int group_id_j = nd_item.get_group().get_group_id(1);
@@ -26,7 +29,8 @@ sycl::event MatrixMatrixOperations::triangularSolve(sycl::queue& queue, conf::fp
 
             for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                 // b_k = b_k/a_kk
-                const conf::fp_type b_k = A[blockStartIndex_B + group_id_j * matrixBlockSize + k] / A[blockStartIndex_L + k * matrixBlockSize + k];
+                const conf::fp_type b_k = A[blockStartIndex_B + group_id_j * matrixBlockSize + k] /
+                                          A[blockStartIndex_L + k * matrixBlockSize + k];
 
                 nd_item.barrier();
 
@@ -36,7 +40,9 @@ sycl::event MatrixMatrixOperations::triangularSolve(sycl::queue& queue, conf::fp
 
                 if (local_i > k) {
                     // b_i = b_i - a_ik*b_k
-                    A[blockStartIndex_B + group_id_j * matrixBlockSize + local_i] = A[blockStartIndex_B + group_id_j * matrixBlockSize + local_i] - A[blockStartIndex_L + local_i * matrixBlockSize + k] * b_k;
+                    A[blockStartIndex_B + group_id_j * matrixBlockSize + local_i] =
+                        A[blockStartIndex_B + group_id_j * matrixBlockSize + local_i] -
+                        A[blockStartIndex_L + local_i * matrixBlockSize + k] * b_k;
                 }
 
                 nd_item.barrier();
@@ -47,7 +53,10 @@ sycl::event MatrixMatrixOperations::triangularSolve(sycl::queue& queue, conf::fp
     return event;
 }
 
-sycl::event MatrixMatrixOperations::triangularSolve_optimizedGPU(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount) {
+sycl::event
+MatrixMatrixOperations::triangularSolve_optimizedGPU(sycl::queue &queue, conf::fp_type *A,
+                                                     const int blockID, const int blockRow,
+                                                     const int blockStart, const int blockCount) {
     // one work-group per rhs
     const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
     const range localRange(conf::matrixBlockSize, 1);
@@ -55,12 +64,13 @@ sycl::event MatrixMatrixOperations::triangularSolve_optimizedGPU(sycl::queue& qu
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
+    const std::size_t blockStartIndex =
+        static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
         auto local_column = local_accessor<conf::fp_type, 1>(matrixBlockSize, h);
 
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(0);
             const int group_id_i = nd_item.get_group().get_group_id(0);
             const int group_id_j = nd_item.get_group().get_group_id(1);
@@ -72,7 +82,8 @@ sycl::event MatrixMatrixOperations::triangularSolve_optimizedGPU(sycl::queue& qu
             const std::size_t blockStartIndex_L = blockStartIndex;
 
             // inverse of diagonal value in lower triangular matrix
-            const conf::fp_type diagonal_ii = 1.0 / A[blockStartIndex_L + local_i * matrixBlockSize + local_i];
+            const conf::fp_type diagonal_ii =
+                1.0 / A[blockStartIndex_L + local_i * matrixBlockSize + local_i];
 
             // current value of the position in the column that will be updated by the work-item
             conf::fp_type value = A[blockStartIndex_B + group_id_j * matrixBlockSize + local_i];
@@ -87,7 +98,8 @@ sycl::event MatrixMatrixOperations::triangularSolve_optimizedGPU(sycl::queue& qu
             for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                 if (local_i > k) {
                     // b_i = b_i - a_ik*b_k
-                    value = value - A[blockStartIndex_L + local_i * matrixBlockSize + k] * local_column[k];
+                    value = value -
+                            A[blockStartIndex_L + local_i * matrixBlockSize + k] * local_column[k];
                     if (local_i == k + 1) {
                         // make b_{k+1} available to all work-items for the next iteration
                         local_column[local_i] = value * diagonal_ii;
@@ -98,7 +110,8 @@ sycl::event MatrixMatrixOperations::triangularSolve_optimizedGPU(sycl::queue& qu
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
             }
 
-            // store final value in global memory, also works for last entry since value * diagonal_ii is recomputed
+            // store final value in global memory, also works for last entry since value *
+            // diagonal_ii is recomputed
             A[blockStartIndex_B + group_id_j * matrixBlockSize + local_i] = value * diagonal_ii;
         });
     });
@@ -106,16 +119,20 @@ sycl::event MatrixMatrixOperations::triangularSolve_optimizedGPU(sycl::queue& qu
     return event;
 }
 
-sycl::event MatrixMatrixOperations::triangularSolve_optimizedCPU(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount) {
+sycl::event
+MatrixMatrixOperations::triangularSolve_optimizedCPU(sycl::queue &queue, conf::fp_type *A,
+                                                     const int blockID, const int blockRow,
+                                                     const int blockStart, const int blockCount) {
     // one work-group per rhs
     const range globalRange(blockCount, conf::matrixBlockSize);
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    const std::size_t blockStartIndex = static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
+    const std::size_t blockStartIndex =
+        static_cast<std::size_t>(blockID) * conf::matrixBlockSize * conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(globalRange, [=](auto& id) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(globalRange, [=](auto &id) {
             const int group_id_i = id[0];
             const int group_id_j = id[1];
 
@@ -127,14 +144,17 @@ sycl::event MatrixMatrixOperations::triangularSolve_optimizedCPU(sycl::queue& qu
 
             for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                 // b_k = b_k/a_kk
-                const conf::fp_type b_k = A[blockStartIndex_B + group_id_j * matrixBlockSize + k] / A[blockStartIndex_L + k * matrixBlockSize + k];
+                const conf::fp_type b_k = A[blockStartIndex_B + group_id_j * matrixBlockSize + k] /
+                                          A[blockStartIndex_L + k * matrixBlockSize + k];
 
                 A[blockStartIndex_B + group_id_j * matrixBlockSize + k] = b_k;
 
 #pragma clang loop vectorize(enable) unroll(enable)
                 for (int j = k + 1; j < static_cast<int>(matrixBlockSize); ++j) {
                     // b_i = b_i - a_ik*b_k
-                    A[blockStartIndex_B + group_id_j * matrixBlockSize + j] = A[blockStartIndex_B + group_id_j * matrixBlockSize + j] - A[blockStartIndex_L + j * matrixBlockSize + k] * b_k;
+                    A[blockStartIndex_B + group_id_j * matrixBlockSize + j] =
+                        A[blockStartIndex_B + group_id_j * matrixBlockSize + j] -
+                        A[blockStartIndex_L + j * matrixBlockSize + k] * b_k;
                 }
             }
         });
@@ -143,10 +163,13 @@ sycl::event MatrixMatrixOperations::triangularSolve_optimizedCPU(sycl::queue& qu
     return event;
 }
 
-sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount, const int blockCountXY) {
+sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal(
+    sycl::queue &queue, conf::fp_type *A, const int blockID, const int blockRow,
+    const int blockStart, const int blockCount, const int blockCountXY) {
     const int wgSize_xy = conf::workGroupSizeGEMM_xy;
     if (conf::matrixBlockSize % wgSize_xy != 0) {
-        throw std::runtime_error("xy work-group dimension for matrix multiplication must divide matrix block size");
+        throw std::runtime_error(
+            "xy work-group dimension for matrix multiplication must divide matrix block size");
     }
 
     const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgSize_xy;
@@ -160,8 +183,8 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal(sycl::queue& q
     // block count of all columns except the first one
     const int referenceBlockCount = (blockCountXY * (blockCountXY - 1)) / 2;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(0);
             const int local_j = nd_item.get_local_id(1);
             const int group_id_i = nd_item.get_group().get_group_id(0);
@@ -180,14 +203,17 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal(sycl::queue& q
             const int columnBlocksToRight = (block_j_inv * (block_j_inv + 1)) / 2;
 
             // id of block in the matrix data structure for symmetric matrices
-            const int blockID_wg_diag = blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
+            const int blockID_wg_diag =
+                blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
 
             // id of the column block used in the matrix-matrix multiplication
             const int blockID_wg_col = blockID + columnOffset;
 
             // start indices of blocks involved in the syrk update
-            const std::size_t blockStartIndex_diag = static_cast<std::size_t>(blockID_wg_diag) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_col = static_cast<std::size_t>(blockID_wg_col) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_diag =
+                static_cast<std::size_t>(blockID_wg_diag) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_col =
+                static_cast<std::size_t>(blockID_wg_col) * matrixBlockSize * matrixBlockSize;
 
             // indices in of the current work-item in the matrix block
             const int internalBlockOffset_i = (group_id_i % wgCount_xy) * wgSize_xy;
@@ -200,7 +226,10 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal(sycl::queue& q
                 // perform update for lower triangle of the diagonal
                 for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                     // B_diag = B_diag - B_col * B_col^T
-                    A[blockStartIndex_diag + i * matrixBlockSize + j] = A[blockStartIndex_diag + i * matrixBlockSize + j] - A[blockStartIndex_col + i * matrixBlockSize + k] * A[blockStartIndex_col + j * matrixBlockSize + k];
+                    A[blockStartIndex_diag + i * matrixBlockSize + j] =
+                        A[blockStartIndex_diag + i * matrixBlockSize + j] -
+                        A[blockStartIndex_col + i * matrixBlockSize + k] *
+                            A[blockStartIndex_col + j * matrixBlockSize + k];
                 }
             }
         });
@@ -209,10 +238,13 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal(sycl::queue& q
     return event;
 }
 
-sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedGPU(sycl::queue& queue, conf::fp_type* A, int blockID, int blockRow, int blockStart, int blockCount, int blockCountXY) {
+sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedGPU(
+    sycl::queue &queue, conf::fp_type *A, int blockID, int blockRow, int blockStart, int blockCount,
+    int blockCountXY) {
     const int wgSize_xy = conf::workGroupSizeGEMM_xy;
     if (conf::matrixBlockSize % wgSize_xy != 0) {
-        throw std::runtime_error("xy work-group dimension for matrix multiplication must divide matrix block size");
+        throw std::runtime_error(
+            "xy work-group dimension for matrix multiplication must divide matrix block size");
     }
 
     const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgSize_xy;
@@ -226,11 +258,11 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedGPU(s
     // block count of all columns except the first one
     const int referenceBlockCount = (blockCountXY * (blockCountXY - 1)) / 2;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
         auto local_tile_A = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
         auto local_tile_B = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
 
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(0);
             const int local_j = nd_item.get_local_id(1);
             const int group_id_i = nd_item.get_group().get_group_id(0);
@@ -249,14 +281,17 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedGPU(s
             const int columnBlocksToRight = (block_j_inv * (block_j_inv + 1)) / 2;
 
             // id of block in the matrix data structure for symmetric matrices
-            const int blockID_wg_diag = blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
+            const int blockID_wg_diag =
+                blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
 
             // id of the column block used in the matrix-matrix multiplication
             const int blockID_wg_col = blockID + columnOffset;
 
             // start indices of blocks involved in the syrk update
-            const std::size_t blockStartIndex_diag = static_cast<std::size_t>(blockID_wg_diag) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_col = static_cast<std::size_t>(blockID_wg_col) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_diag =
+                static_cast<std::size_t>(blockID_wg_diag) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_col =
+                static_cast<std::size_t>(blockID_wg_col) * matrixBlockSize * matrixBlockSize;
 
             const int group_mod_count_i = (group_id_i % wgCount_xy);
             const int group_mod_count_j = (group_id_j % wgCount_xy);
@@ -279,10 +314,12 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedGPU(s
                 // if tile is below diagonal or a diagonal tile, cache it in local memory
                 if (i >= j || group_mod_count_i == group_mod_count_j) {
                     // normal block
-                    local_tile_A[local_i][local_j] = A[blockStartIndex_col + i * matrixBlockSize + t * wgSize_xy + local_j];
+                    local_tile_A[local_i][local_j] =
+                        A[blockStartIndex_col + i * matrixBlockSize + t * wgSize_xy + local_j];
 
                     // transposed block
-                    local_tile_B[local_i][local_j] = A[blockStartIndex_col + j * matrixBlockSize + t * wgSize_xy + local_i];
+                    local_tile_B[local_i][local_j] =
+                        A[blockStartIndex_col + j * matrixBlockSize + t * wgSize_xy + local_i];
                 }
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
 
@@ -303,8 +340,9 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedGPU(s
     return event;
 }
 
-
-sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedCPU(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount, const int blockCountXY) {
+sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedCPU(
+    sycl::queue &queue, conf::fp_type *A, const int blockID, const int blockRow,
+    const int blockStart, const int blockCount, const int blockCountXY) {
     const range globalRange(blockCount * conf::matrixBlockSize, conf::matrixBlockSize);
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
@@ -312,8 +350,8 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedCPU(s
     // block count of all columns except the first one
     const int referenceBlockCount = (blockCountXY * (blockCountXY - 1)) / 2;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(globalRange, [=](auto& id) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(globalRange, [=](auto &id) {
             const int local_i = id[1];
             const int local_j = id[0];
 
@@ -332,14 +370,17 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedCPU(s
             const int columnBlocksToRight = (block_j_inv * (block_j_inv + 1)) / 2;
 
             // id of block in the matrix data structure for symmetric matrices
-            const int blockID_wg_diag = blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
+            const int blockID_wg_diag =
+                blockXYIndexDiagonal + referenceBlockCount - columnBlocksToRight;
 
             // id of the column block used in the matrix-matrix multiplication
             const int blockID_wg_col = blockID + columnOffset;
 
             // start indices of blocks involved in the syrk update
-            const std::size_t blockStartIndex_diag = static_cast<std::size_t>(blockID_wg_diag) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_col = static_cast<std::size_t>(blockID_wg_col) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_diag =
+                static_cast<std::size_t>(blockID_wg_diag) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_col =
+                static_cast<std::size_t>(blockID_wg_col) * matrixBlockSize * matrixBlockSize;
 
             const int i = local_i;
             const int j = local_j % matrixBlockSize;
@@ -350,7 +391,8 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedCPU(s
 #pragma clang loop vectorize(enable) unroll(enable)
                 for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                     // B_diag = B_diag - B_col * B_col^T
-                    value = value - A[blockStartIndex_col + i * matrixBlockSize + k] * A[blockStartIndex_col + j * matrixBlockSize + k];
+                    value = value - A[blockStartIndex_col + i * matrixBlockSize + k] *
+                                        A[blockStartIndex_col + j * matrixBlockSize + k];
                 }
                 A[blockStartIndex_diag + i * matrixBlockSize + j] = value;
             }
@@ -360,11 +402,14 @@ sycl::event MatrixMatrixOperations::symmetricMatrixMatrixDiagonal_optimizedCPU(s
     return event;
 }
 
-
-sycl::event MatrixMatrixOperations::matrixMatrixStep(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount, const int blockCountXY) {
+sycl::event MatrixMatrixOperations::matrixMatrixStep(sycl::queue &queue, conf::fp_type *A,
+                                                     const int blockID, const int blockRow,
+                                                     const int blockStart, const int blockCount,
+                                                     const int blockCountXY) {
     const int wgSize_xy = conf::workGroupSizeGEMM_xy;
     if (conf::matrixBlockSize % wgSize_xy != 0) {
-        throw std::runtime_error("xy work-group dimension for matrix multiplication must divide matrix block size");
+        throw std::runtime_error(
+            "xy work-group dimension for matrix multiplication must divide matrix block size");
     }
 
     const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgSize_xy;
@@ -377,7 +422,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep(sycl::queue& queue, conf::f
 
     const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
     const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
-    const int lowerBlockCount = totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+    const int lowerBlockCount =
+        totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
     const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
@@ -387,8 +433,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep(sycl::queue& queue, conf::f
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(0);
             const int local_j = nd_item.get_local_id(1);
             const int group_id_i = nd_item.get_group().get_group_id(1);
@@ -402,19 +448,26 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep(sycl::queue& queue, conf::f
 
             const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 
-            // column ID of the matrix block int the lower triangle the current work-group is associated with
+            // column ID of the matrix block int the lower triangle the current work-group is
+            // associated with
             const int columnID = rowBlockID - blocksAboveCurrentRow;
 
             // calculation of the block ID of matrix block associated with this work-group
-            const int wgBlockID_A = blockID + blockCountXY - blockRow + columnID + 1 + (totalBlockCount - ((blockCountXY
-                - blockRow - 2 - columnID) * (blockCountXY - blockRow - 2 - columnID + 1) / 2)) + rowID - columnID;
+            const int wgBlockID_A =
+                blockID + blockCountXY - blockRow + columnID + 1 +
+                (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                    (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+                rowID - columnID;
 
             const int wgBlockID_B = blockID + rowID + 2;
             const int wgBlockID_C = blockID + columnID + 1;
 
-            const std::size_t blockStartIndex_A = static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_B = static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_C = static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_A =
+                static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_B =
+                static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_C =
+                static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
 
             // indices in of the current work-item in the matrix block
             const int internalBlockOffset_i = (group_id_i % wgCount_xy) * wgSize_xy;
@@ -425,7 +478,10 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep(sycl::queue& queue, conf::f
 
             for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                 // A = A - B * C^T
-                A[blockStartIndex_A + i * matrixBlockSize + j] = A[blockStartIndex_A + i * matrixBlockSize + j] - A[blockStartIndex_B + i * matrixBlockSize + k] * A[blockStartIndex_C + j * matrixBlockSize + k];
+                A[blockStartIndex_A + i * matrixBlockSize + j] =
+                    A[blockStartIndex_A + i * matrixBlockSize + j] -
+                    A[blockStartIndex_B + i * matrixBlockSize + k] *
+                        A[blockStartIndex_C + j * matrixBlockSize + k];
             }
         });
     });
@@ -433,10 +489,15 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep(sycl::queue& queue, conf::f
     return event;
 }
 
-sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue& queue, conf::fp_type* A, int blockID, int blockRow, int blockStart, int blockCount, int blockCountXY) {
+sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue &queue,
+                                                                  conf::fp_type *A, int blockID,
+                                                                  int blockRow, int blockStart,
+                                                                  int blockCount,
+                                                                  int blockCountXY) {
     const int wgSize_xy = conf::workGroupSizeGEMM_xy;
     if (conf::matrixBlockSize % wgSize_xy != 0) {
-        throw std::runtime_error("xy work-group dimension for matrix multiplication must divide matrix block size");
+        throw std::runtime_error(
+            "xy work-group dimension for matrix multiplication must divide matrix block size");
     }
 
     const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgSize_xy;
@@ -449,7 +510,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue& q
 
     const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
     const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
-    const int lowerBlockCount = totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+    const int lowerBlockCount =
+        totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
     const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
@@ -459,11 +521,12 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue& q
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
         auto local_tile_B = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
-        auto local_tile_C = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy + 1), h);
+        auto local_tile_C =
+            local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy + 1), h);
 
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(0);
             const int local_j = nd_item.get_local_id(1);
             const int group_id_i = nd_item.get_group().get_group_id(1);
@@ -477,19 +540,26 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue& q
 
             const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 
-            // column ID of the matrix block int the lower triangle the current work-group is associated with
+            // column ID of the matrix block int the lower triangle the current work-group is
+            // associated with
             const int columnID = rowBlockID - blocksAboveCurrentRow;
 
             // calculation of the block ID of matrix block associated with this work-group
-            const int wgBlockID_A = blockID + blockCountXY - blockRow + columnID + 1 + (totalBlockCount - ((blockCountXY
-                - blockRow - 2 - columnID) * (blockCountXY - blockRow - 2 - columnID + 1) / 2)) + rowID - columnID;
+            const int wgBlockID_A =
+                blockID + blockCountXY - blockRow + columnID + 1 +
+                (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                    (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+                rowID - columnID;
 
             const int wgBlockID_B = blockID + rowID + 2;
             const int wgBlockID_C = blockID + columnID + 1;
 
-            const std::size_t blockStartIndex_A = static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_B = static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_C = static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_A =
+                static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_B =
+                static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_C =
+                static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
 
             // indices in of the current work-item in the matrix block
             const int internalBlockOffset_i = (group_id_i % wgCount_xy) * wgSize_xy;
@@ -498,8 +568,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue& q
             const int i = internalBlockOffset_i + local_i;
             const int j = internalBlockOffset_j + local_j;
 
-
-            // i coordinate for matrix c that needs to be interpreted as transposed later but is loaded non-transposed
+            // i coordinate for matrix c that needs to be interpreted as transposed later but is
+            // loaded non-transposed
             const int i_c = internalBlockOffset_j + local_i;
 
             // load initial value for result
@@ -518,7 +588,6 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue& q
 
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
 
-
 #pragma unroll
                 for (int k = 0; k < wgSize_xy; ++k) {
                     // B_diag = B_diag - B_col * B_col^T
@@ -533,10 +602,15 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU(sycl::queue& q
     return event;
 }
 
-sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue& queue, conf::fp_type* A, int blockID, int blockRow, int blockStart, int blockCount, int blockCountXY) {
+sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue &queue,
+                                                                   conf::fp_type *A, int blockID,
+                                                                   int blockRow, int blockStart,
+                                                                   int blockCount,
+                                                                   int blockCountXY) {
     const int wgSize_xy = conf::workGroupSizeGEMM_xy;
     if (conf::matrixBlockSize % wgSize_xy != 0) {
-        throw std::runtime_error("xy work-group dimension for matrix multiplication must divide matrix block size");
+        throw std::runtime_error(
+            "xy work-group dimension for matrix multiplication must divide matrix block size");
     }
 
     const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgSize_xy;
@@ -549,7 +623,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue& 
 
     const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
     const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
-    const int lowerBlockCount = totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+    const int lowerBlockCount =
+        totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
     const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
@@ -559,17 +634,17 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue& 
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
         auto local_tile_B = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy), h);
-        auto local_tile_C = local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy + 1), h);
+        auto local_tile_C =
+            local_accessor<conf::fp_type, 2>(sycl::range(wgSize_xy, wgSize_xy + 1), h);
         auto cache = local_accessor<std::size_t, 1>(sycl::range(3), h);
 
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(0);
             const int local_j = nd_item.get_local_id(1);
             const int group_id_i = nd_item.get_group().get_group_id(1);
             const int group_id_j = nd_item.get_group().get_group_id(0);
-
 
             // row ID in the lower triangle where the computation takes place
             if (local_i == 0 && local_j == 0) {
@@ -580,19 +655,26 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue& 
 
                 const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 
-                // column ID of the matrix block int the lower triangle the current work-group is associated with
+                // column ID of the matrix block int the lower triangle the current work-group is
+                // associated with
                 const int columnID = rowBlockID - blocksAboveCurrentRow;
 
                 // calculation of the block ID of matrix block associated with this work-group
-                const int wgBlockID_A = blockID + blockCountXY - blockRow + columnID + 1 + (totalBlockCount - ((blockCountXY
-                    - blockRow - 2 - columnID) * (blockCountXY - blockRow - 2 - columnID + 1) / 2)) + rowID - columnID;
+                const int wgBlockID_A =
+                    blockID + blockCountXY - blockRow + columnID + 1 +
+                    (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                        (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+                    rowID - columnID;
 
                 const int wgBlockID_B = blockID + rowID + 2;
                 const int wgBlockID_C = blockID + columnID + 1;
 
-                cache[0] = static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
-                cache[1] = static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
-                cache[2] = static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
+                cache[0] =
+                    static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
+                cache[1] =
+                    static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
+                cache[2] =
+                    static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
             }
             group_barrier(nd_item.get_group(), memory_scope::work_group);
 
@@ -607,8 +689,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue& 
             const int i = internalBlockOffset_i + local_i;
             const int j = internalBlockOffset_j + local_j;
 
-
-            // i coordinate for matrix c that needs to be interpreted as transposed later but is loaded non-transposed
+            // i coordinate for matrix c that needs to be interpreted as transposed later but is
+            // loaded non-transposed
             const int i_c = internalBlockOffset_j + local_i;
 
             // load initial value for result
@@ -627,7 +709,6 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue& 
 
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
 
-
 #pragma unroll
                 for (int k = 0; k < wgSize_xy; ++k) {
                     // B_diag = B_diag - B_col * B_col^T
@@ -642,7 +723,11 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU2(sycl::queue& 
     return event;
 }
 
-sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& queue, conf::fp_type* A, int blockID, int blockRow, int blockStart, int blockCount, int blockCountXY) {
+sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue &queue,
+                                                                   conf::fp_type *A, int blockID,
+                                                                   int blockRow, int blockStart,
+                                                                   int blockCount,
+                                                                   int blockCountXY) {
     const int wgSize_xy = 16;
 
     const int valuesPerWorkItem_xy = 4;
@@ -654,8 +739,11 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
 
     const int sharedMemBlockCount = static_cast<int>(conf::matrixBlockSize) / sharedMemBlockSize_x;
 
-    if (conf::matrixBlockSize % wgSize_xy != 0 || conf::matrixBlockSize % sharedMemBlockSize_x != 0 || conf::matrixBlockSize % sharedMemBlockSize_y != 0) {
-        throw std::runtime_error("xy work-group dimension for matrix multiplication must divide matrix block size and shared memory block size");
+    if (conf::matrixBlockSize % wgSize_xy != 0 ||
+        conf::matrixBlockSize % sharedMemBlockSize_x != 0 ||
+        conf::matrixBlockSize % sharedMemBlockSize_y != 0) {
+        throw std::runtime_error("xy work-group dimension for matrix multiplication must divide "
+                                 "matrix block size and shared memory block size");
     }
 
     const int wgCount_xy = static_cast<int>(conf::matrixBlockSize) / wgBlockSize_xy;
@@ -668,7 +756,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
 
     const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
     const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
-    const int lowerBlockCount = totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+    const int lowerBlockCount =
+        totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
     const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
@@ -678,17 +767,18 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        auto local_tile_B = local_accessor<conf::fp_type, 2>(sycl::range(sharedMemBlockSize_y, sharedMemBlockSize_x + 1), h);
-        auto local_tile_C = local_accessor<conf::fp_type, 2>(sycl::range(sharedMemBlockSize_x, sharedMemBlockSize_y + 1), h);
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        auto local_tile_B = local_accessor<conf::fp_type, 2>(
+            sycl::range(sharedMemBlockSize_y, sharedMemBlockSize_x + 1), h);
+        auto local_tile_C = local_accessor<conf::fp_type, 2>(
+            sycl::range(sharedMemBlockSize_x, sharedMemBlockSize_y + 1), h);
         auto cache = local_accessor<std::size_t, 1>(sycl::range(3), h);
 
-        h.parallel_for(kernelRange, [=](auto& nd_item) {
+        h.parallel_for(kernelRange, [=](auto &nd_item) {
             const int local_i = nd_item.get_local_id(1);
             const int local_j = nd_item.get_local_id(0);
             const int group_id_i = nd_item.get_group().get_group_id(1);
             const int group_id_j = nd_item.get_group().get_group_id(0);
-
 
             // row ID in the lower triangle where the computation takes place
             if (local_i == 0 && local_j == 0) {
@@ -699,19 +789,26 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
 
                 const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 
-                // column ID of the matrix block int the lower triangle the current work-group is associated with
+                // column ID of the matrix block int the lower triangle the current work-group is
+                // associated with
                 const int columnID = rowBlockID - blocksAboveCurrentRow;
 
                 // calculation of the block ID of matrix block associated with this work-group
-                const int wgBlockID_A = blockID + blockCountXY - blockRow + columnID + 1 + (totalBlockCount - ((blockCountXY
-                    - blockRow - 2 - columnID) * (blockCountXY - blockRow - 2 - columnID + 1) / 2)) + rowID - columnID;
+                const int wgBlockID_A =
+                    blockID + blockCountXY - blockRow + columnID + 1 +
+                    (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                        (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+                    rowID - columnID;
 
                 const int wgBlockID_B = blockID + rowID + 2;
                 const int wgBlockID_C = blockID + columnID + 1;
 
-                cache[0] = static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
-                cache[1] = static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
-                cache[2] = static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
+                cache[0] =
+                    static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
+                cache[1] =
+                    static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
+                cache[2] =
+                    static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
             }
             group_barrier(nd_item.get_group(), memory_scope::work_group);
 
@@ -723,7 +820,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
             const int internalBlockOffset_i = (group_id_i % wgCount_xy) * wgBlockSize_xy;
             const int internalBlockOffset_j = (group_id_j % wgCount_xy) * wgBlockSize_xy;
 
-            // upper left index of the valuesPerWorkItem_xy x valuesPerWorkItem_xy tile of this work-item in the result matrix
+            // upper left index of the valuesPerWorkItem_xy x valuesPerWorkItem_xy tile of this
+            // work-item in the result matrix
             const int i = internalBlockOffset_i + local_i * valuesPerWorkItem_xy;
             const int j = internalBlockOffset_j + local_j * valuesPerWorkItem_xy;
 
@@ -736,28 +834,35 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
                 }
             }
 
-            const std::size_t startIndexB = blockStartIndex_B + internalBlockOffset_i * matrixBlockSize;
-            const std::size_t startIndexC = blockStartIndex_C + internalBlockOffset_j * matrixBlockSize;
+            const std::size_t startIndexB =
+                blockStartIndex_B + internalBlockOffset_i * matrixBlockSize;
+            const std::size_t startIndexC =
+                blockStartIndex_C + internalBlockOffset_j * matrixBlockSize;
 
             // perform update for lower triangle of the diagonal
             for (int t = 0; t < sharedMemBlockCount; ++t) {
                 // normal block
                 for (int s = 0; s < valuesPerWorkItem_xy; ++s) {
-                    local_tile_B[local_i + s * wgSize_xy][local_j] = A[startIndexB + t * sharedMemBlockSize_x + local_i * matrixBlockSize + local_j + s * wgSize_xy * matrixBlockSize];
+                    local_tile_B[local_i + s * wgSize_xy][local_j] =
+                        A[startIndexB + t * sharedMemBlockSize_x + local_i * matrixBlockSize +
+                          local_j + s * wgSize_xy * matrixBlockSize];
                 }
 
                 // transposed block
                 for (int s = 0; s < valuesPerWorkItem_xy; ++s) {
-                    local_tile_C[local_i][local_j + s * wgSize_xy] = A[startIndexC + t * sharedMemBlockSize_x + local_j * matrixBlockSize + local_i + s * wgSize_xy * matrixBlockSize];
+                    local_tile_C[local_i][local_j + s * wgSize_xy] =
+                        A[startIndexC + t * sharedMemBlockSize_x + local_j * matrixBlockSize +
+                          local_i + s * wgSize_xy * matrixBlockSize];
                 }
 
                 group_barrier(nd_item.get_group(), memory_scope::work_group);
 
-
                 for (int k = 0; k < sharedMemBlockSize_x; ++k) {
                     for (int ii = 0; ii < valuesPerWorkItem_xy; ++ii) {
                         for (int jj = 0; jj < valuesPerWorkItem_xy; ++jj) {
-                            workItemTile[ii][jj] += local_tile_B[local_i * valuesPerWorkItem_xy + ii][k] * local_tile_C[k][local_j * valuesPerWorkItem_xy + jj];
+                            workItemTile[ii][jj] +=
+                                local_tile_B[local_i * valuesPerWorkItem_xy + ii][k] *
+                                local_tile_C[k][local_j * valuesPerWorkItem_xy + jj];
                         }
                     }
                 }
@@ -768,7 +873,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
             // store the result
             for (int ii = 0; ii < valuesPerWorkItem_xy; ++ii) {
                 for (int jj = 0; jj < valuesPerWorkItem_xy; ++jj) {
-                    A[blockStartIndex_A + (i + ii) * matrixBlockSize + (j + jj)] -= workItemTile[ii][jj];
+                    A[blockStartIndex_A + (i + ii) * matrixBlockSize + (j + jj)] -=
+                        workItemTile[ii][jj];
                 }
             }
         });
@@ -777,8 +883,9 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedGPU3(sycl::queue& 
     return event;
 }
 
-
-sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount, const int blockCountXY) {
+sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU(
+    sycl::queue &queue, conf::fp_type *A, const int blockID, const int blockRow,
+    const int blockStart, const int blockCount, const int blockCountXY) {
     const int rowsAbove = blockStart - (blockRow + 2);
     const int rowsBelow = blockCountXY - blockStart - blockCount;
 
@@ -787,7 +894,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU(sycl::queue& q
 
     const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
     const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
-    const int lowerBlockCount = totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+    const int lowerBlockCount =
+        totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
     const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
@@ -795,8 +903,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU(sycl::queue& q
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(globalRange, [=](auto& id) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(globalRange, [=](auto &id) {
             const int local_i = id[1];
             const int local_j = id[0];
 
@@ -810,20 +918,26 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU(sycl::queue& q
 
             const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 
-            // column ID of the matrix block int the lower triangle the current work-group is associated with
+            // column ID of the matrix block int the lower triangle the current work-group is
+            // associated with
             const int columnID = rowBlockID - blocksAboveCurrentRow;
 
             // calculation of the block ID of matrix block associated with this work-group
-            const int wgBlockID_A = blockID + blockCountXY - blockRow + columnID + 1 + (totalBlockCount - ((blockCountXY
-                - blockRow - 2 - columnID) * (blockCountXY - blockRow - 2 - columnID + 1) / 2)) + rowID - columnID;
+            const int wgBlockID_A =
+                blockID + blockCountXY - blockRow + columnID + 1 +
+                (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                    (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+                rowID - columnID;
 
             const int wgBlockID_B = blockID + rowID + 2;
             const int wgBlockID_C = blockID + columnID + 1;
 
-            const std::size_t blockStartIndex_A = static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_B = static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_C = static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
-
+            const std::size_t blockStartIndex_A =
+                static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_B =
+                static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_C =
+                static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
 
             const int i = local_i;
             const int j = local_j % matrixBlockSize;
@@ -832,7 +946,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU(sycl::queue& q
 #pragma clang loop vectorize(enable) unroll(enable)
             for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                 // A = A - B * C^T
-                value = value - A[blockStartIndex_B + i * matrixBlockSize + k] * A[blockStartIndex_C + j * matrixBlockSize + k];
+                value = value - A[blockStartIndex_B + i * matrixBlockSize + k] *
+                                    A[blockStartIndex_C + j * matrixBlockSize + k];
             }
 
             A[blockStartIndex_A + i * matrixBlockSize + j] = value;
@@ -842,7 +957,9 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU(sycl::queue& q
     return event;
 }
 
-sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU2(sycl::queue& queue, conf::fp_type* A, const int blockID, const int blockRow, const int blockStart, const int blockCount, const int blockCountXY) {
+sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU2(
+    sycl::queue &queue, conf::fp_type *A, const int blockID, const int blockRow,
+    const int blockStart, const int blockCount, const int blockCountXY) {
     const int rowsAbove = blockStart - (blockRow + 2);
     const int rowsBelow = blockCountXY - blockStart - blockCount;
 
@@ -851,7 +968,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU2(sycl::queue& 
 
     const int upperBlockCount = ((rowsAbove * (rowsAbove + 1)) / 2);
     const int totalBlockCount = (virtualBlockCount * (virtualBlockCount + 1)) / 2;
-    const int lowerBlockCount = totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
+    const int lowerBlockCount =
+        totalBlockCount - ((blockCount + rowsAbove) * ((blockCount + rowsAbove) + 1) / 2);
 
     const int wgCount = totalBlockCount - upperBlockCount - lowerBlockCount;
 
@@ -859,8 +977,8 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU2(sycl::queue& 
 
     const std::size_t matrixBlockSize = conf::matrixBlockSize;
 
-    sycl::event event = queue.submit([&](sycl::handler& h) {
-        h.parallel_for(globalRange, [=](auto& id) {
+    sycl::event event = queue.submit([&](sycl::handler &h) {
+        h.parallel_for(globalRange, [=](auto &id) {
             const int local_i = id[0];
 
             const int group_id = local_i / matrixBlockSize;
@@ -873,29 +991,36 @@ sycl::event MatrixMatrixOperations::matrixMatrixStep_optimizedCPU2(sycl::queue& 
 
             const int blocksAboveCurrentRow = rowID * (rowID + 1) / 2;
 
-            // column ID of the matrix block int the lower triangle the current work-group is associated with
+            // column ID of the matrix block int the lower triangle the current work-group is
+            // associated with
             const int columnID = rowBlockID - blocksAboveCurrentRow;
 
             // calculation of the block ID of matrix block associated with this work-group
-            const int wgBlockID_A = blockID + blockCountXY - blockRow + columnID + 1 + (totalBlockCount - ((blockCountXY
-                - blockRow - 2 - columnID) * (blockCountXY - blockRow - 2 - columnID + 1) / 2)) + rowID - columnID;
+            const int wgBlockID_A =
+                blockID + blockCountXY - blockRow + columnID + 1 +
+                (totalBlockCount - ((blockCountXY - blockRow - 2 - columnID) *
+                                    (blockCountXY - blockRow - 2 - columnID + 1) / 2)) +
+                rowID - columnID;
 
             const int wgBlockID_B = blockID + rowID + 2;
             const int wgBlockID_C = blockID + columnID + 1;
 
-            const std::size_t blockStartIndex_A = static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_B = static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
-            const std::size_t blockStartIndex_C = static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_A =
+                static_cast<std::size_t>(wgBlockID_A) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_B =
+                static_cast<std::size_t>(wgBlockID_B) * matrixBlockSize * matrixBlockSize;
+            const std::size_t blockStartIndex_C =
+                static_cast<std::size_t>(wgBlockID_C) * matrixBlockSize * matrixBlockSize;
 
             const int i = local_i % matrixBlockSize;
-
 
             for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
                 conf::fp_type value = 0;
 #pragma clang loop vectorize(enable) unroll(enable)
                 for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
                     // A = A - B * C^T
-                    value += A[blockStartIndex_B + j * matrixBlockSize + k] * A[blockStartIndex_C + i * matrixBlockSize + k];
+                    value += A[blockStartIndex_B + j * matrixBlockSize + k] *
+                             A[blockStartIndex_C + i * matrixBlockSize + k];
                 }
                 A[blockStartIndex_A + j * matrixBlockSize + i] -= value;
             }

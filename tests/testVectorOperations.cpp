@@ -2,16 +2,16 @@
 #include <sycl/sycl.hpp>
 #include <vector>
 
-#include "VectorOperations.hpp"
-#include "MatrixParser.hpp"
-#include "SymmetricMatrix.hpp"
-#include "RightHandSide.hpp"
 #include "Configuration.hpp"
+#include "MatrixParser.hpp"
+#include "RightHandSide.hpp"
+#include "SymmetricMatrix.hpp"
+#include "VectorOperations.hpp"
 
 using namespace sycl;
 
 class vectorOperationsTest : public ::testing::Test {
-protected:
+  protected:
     std::string path_A = "../tests/testData/testMatrixSymmetric20x20.txt";
     std::string path_b = "../tests/testData/testVector_20.txt";
 };
@@ -26,21 +26,20 @@ TEST_F(vectorOperationsTest, scaleFullVector) {
     conf::workGroupSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
-    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0, b.blockCountX);
+    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0,
+                                       b.blockCountX);
     queue.wait();
 
     std::vector<conf::fp_type> reference = {
-        0.029189009979898, 1.112248921872294, -0.878612617041698, 1.107769322915512,
-        -0.46461072521187, -0.189316198312834, 0.809137028453929, -0.224198228408177,
-        0.122452766107305, -1.166513242309275, 0.625954286891139, 0.094180417535984,
-        -0.420412824157762, 0.712165080209142, -0.485935583099414, -0.114819291125534,
-        -0.903594964493081, -0.239225662903664, -0.732204596141706, -0.586876884848221
-    };
+        0.029189009979898,  1.112248921872294,  -0.878612617041698, 1.107769322915512,
+        -0.46461072521187,  -0.189316198312834, 0.809137028453929,  -0.224198228408177,
+        0.122452766107305,  -1.166513242309275, 0.625954286891139,  0.094180417535984,
+        -0.420412824157762, 0.712165080209142,  -0.485935583099414, -0.114819291125534,
+        -0.903594964493081, -0.239225662903664, -0.732204596141706, -0.586876884848221};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -55,22 +54,35 @@ TEST_F(vectorOperationsTest, scaleUpperVector) {
     conf::workGroupSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale upper 3 blocks of b
-    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0, 3);
+    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0,
+                                       3);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.029189009979898, 1.112248921872294, -0.878612617041698, 1.107769322915512,
-        -0.46461072521187, -0.189316198312834, 0.809137028453929, -0.224198228408177,
-        0.122452766107305, -1.166513242309275, 0.625954286891139, 0.094180417535984,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.029189009979898,
+                                            1.112248921872294,
+                                            -0.878612617041698,
+                                            1.107769322915512,
+                                            -0.46461072521187,
+                                            -0.189316198312834,
+                                            0.809137028453929,
+                                            -0.224198228408177,
+                                            0.122452766107305,
+                                            -1.166513242309275,
+                                            0.625954286891139,
+                                            0.094180417535984,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -85,22 +97,35 @@ TEST_F(vectorOperationsTest, scaleLowerVector) {
     conf::workGroupSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale lower 2 blocks of b
-    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 3, 2);
+    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 3,
+                                       2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -0.420412824157762, 0.712165080209142, -0.485935583099414, -0.114819291125534,
-        -0.903594964493081, -0.239225662903664, -0.732204596141706, -0.586876884848221
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -0.420412824157762,
+                                            0.712165080209142,
+                                            -0.485935583099414,
+                                            -0.114819291125534,
+                                            -0.903594964493081,
+                                            -0.239225662903664,
+                                            -0.732204596141706,
+                                            -0.586876884848221};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -115,24 +140,21 @@ TEST_F(vectorOperationsTest, scaleAndAddFullVector) {
     conf::workGroupSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
-    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456, b.rightHandSideData.data(),
-                                             result.data(), 0, b.blockCountX);
+    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456,
+                                             b.rightHandSideData.data(), result.data(), 0,
+                                             b.blockCountX);
     queue.wait();
 
     std::vector<conf::fp_type> reference = {
-        0.052832259380411, 2.013176314524164, -1.59029339160243,
-        2.005068217189999, -0.840947821190899, -0.342663300367683,
-        1.464542216094813, -0.405799955669854, 0.221640141453424,
-        -2.111395015823138, 1.132980504240752, 0.170467043974541,
-        -0.760949391159577, 1.28902248706595, -0.879545924516124,
-        -0.207823512164231, -1.635511569998751, -0.432999690009406,
-        -1.325294114789406, -1.062250203964522
-    };
+        0.052832259380411,  2.013176314524164,  -1.59029339160243,  2.005068217189999,
+        -0.840947821190899, -0.342663300367683, 1.464542216094813,  -0.405799955669854,
+        0.221640141453424,  -2.111395015823138, 1.132980504240752,  0.170467043974541,
+        -0.760949391159577, 1.28902248706595,   -0.879545924516124, -0.207823512164231,
+        -1.635511569998751, -0.432999690009406, -1.325294114789406, -1.062250203964522};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -147,24 +169,35 @@ TEST_F(vectorOperationsTest, scaleAndAddUpperVector) {
     conf::workGroupSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale upper 3 blocks of b
-    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456, b.rightHandSideData.data(),
-                                             result.data(), 0, 3);
+    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456,
+                                             b.rightHandSideData.data(), result.data(), 0, 3);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.052832259380411, 2.013176314524164, -1.59029339160243,
-        2.005068217189999, -0.840947821190899, -0.342663300367683,
-        1.464542216094813, -0.405799955669854, 0.221640141453424,
-        -2.111395015823138, 1.132980504240752, 0.170467043974541,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.052832259380411,
+                                            2.013176314524164,
+                                            -1.59029339160243,
+                                            2.005068217189999,
+                                            -0.840947821190899,
+                                            -0.342663300367683,
+                                            1.464542216094813,
+                                            -0.405799955669854,
+                                            0.221640141453424,
+                                            -2.111395015823138,
+                                            1.132980504240752,
+                                            0.170467043974541,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -178,24 +211,35 @@ TEST_F(vectorOperationsTest, scaleAndAddLowerVector) {
     conf::matrixBlockSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale lower 2 blocks of b
-    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456, b.rightHandSideData.data(),
-                                             result.data(), 3, 2);
+    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456,
+                                             b.rightHandSideData.data(), result.data(), 3, 2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -0.760949391159577, 1.28902248706595, -0.879545924516124,
-        -0.207823512164231, -1.635511569998751, -0.432999690009406,
-        -1.325294114789406, -1.062250203964522
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -0.760949391159577,
+                                            1.28902248706595,
+                                            -0.879545924516124,
+                                            -0.207823512164231,
+                                            -1.635511569998751,
+                                            -0.432999690009406,
+                                            -1.325294114789406,
+                                            -1.062250203964522};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -212,23 +256,21 @@ TEST_F(vectorOperationsTest, addFullVector) {
     conf::workGroupSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // add complete vectors b + b
-    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 0,
-                                     b.blockCountX);
+    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(),
+                                     result.data(), 0, b.blockCountX);
     queue.wait();
 
     std::vector<conf::fp_type> reference = {
-        0.047286498801027, 1.801854785303741, -1.423361549121465, 1.794597788548975,
-        -0.752674191958058, -0.306694204109697, 1.310810375281767, -0.363203454523355,
-        0.198374750692238, -1.889763547027727, 1.014052434699226, 0.152573252877113,
-        -0.681073134003631, 1.153714813713617, -0.78722068283342, -0.186008442077394,
-        -1.463833211011341, -0.387548054211483, -1.186179037295402, -0.950746638232602
-    };
+        0.047286498801027,  1.801854785303741,  -1.423361549121465, 1.794597788548975,
+        -0.752674191958058, -0.306694204109697, 1.310810375281767,  -0.363203454523355,
+        0.198374750692238,  -1.889763547027727, 1.014052434699226,  0.152573252877113,
+        -0.681073134003631, 1.153714813713617,  -0.78722068283342,  -0.186008442077394,
+        -1.463833211011341, -0.387548054211483, -1.186179037295402, -0.950746638232602};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -243,23 +285,35 @@ TEST_F(vectorOperationsTest, addUpperVector) {
     conf::workGroupSize = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // add upper 3 blocks of b + b
-    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 0,
-                                     3);
+    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(),
+                                     result.data(), 0, 3);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.047286498801027, 1.801854785303741, -1.423361549121465, 1.794597788548975,
-        -0.752674191958058, -0.306694204109697, 1.310810375281767, -0.363203454523355,
-        0.198374750692238, -1.889763547027727, 1.014052434699226, 0.152573252877113,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.047286498801027,
+                                            1.801854785303741,
+                                            -1.423361549121465,
+                                            1.794597788548975,
+                                            -0.752674191958058,
+                                            -0.306694204109697,
+                                            1.310810375281767,
+                                            -0.363203454523355,
+                                            0.198374750692238,
+                                            -1.889763547027727,
+                                            1.014052434699226,
+                                            0.152573252877113,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -275,23 +329,35 @@ TEST_F(vectorOperationsTest, addLowerVector) {
 
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // add lower 2 blocks of b + b
-    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 3,
-                                     2);
+    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(),
+                                     result.data(), 3, 2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -0.681073134003631, 1.153714813713617, -0.78722068283342, -0.186008442077394,
-        -1.463833211011341, -0.387548054211483, -1.186179037295402, -0.950746638232602
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -0.681073134003631,
+                                            1.153714813713617,
+                                            -0.78722068283342,
+                                            -0.186008442077394,
+                                            -1.463833211011341,
+                                            -0.387548054211483,
+                                            -1.186179037295402,
+                                            -0.950746638232602};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -327,12 +393,11 @@ TEST_F(vectorOperationsTest, subFullVector) {
     queue.wait();
 
     std::vector<conf::fp_type> reference = {
-        0.023643249400513, -0.099072607348129, -2.125894336933828, -0.834751913294389,
+        0.023643249400513,  -0.099072607348129, -2.125894336933828, -0.834751913294389,
         -2.376337095979029, -2.389415079554638, -1.794084555142294, -2.827353038326268,
         -2.729239749400072, -3.944881773513863, -2.655251442818766, -3.240338163916843,
-        -3.80463818213957, -3.02869386860718, -4.135267728190652, -3.965987567246114,
-        -4.731916605505671, -4.316879652723403, -4.835730205766986, -4.834272262656975
-    };
+        -3.80463818213957,  -3.02869386860718,  -4.135267728190652, -3.965987567246114,
+        -4.731916605505671, -4.316879652723403, -4.835730205766986, -4.834272262656975};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -357,7 +422,6 @@ TEST_F(vectorOperationsTest, subUpperVector) {
         y[i] = std::sqrt(i);
     }
 
-
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
@@ -366,13 +430,26 @@ TEST_F(vectorOperationsTest, subUpperVector) {
                                      3);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.023643249400513, -0.099072607348129, -2.125894336933828, -0.834751913294389,
-        -2.376337095979029, -2.389415079554638, -1.794084555142294, -2.827353038326268,
-        -2.729239749400072, -3.944881773513863, -2.655251442818766, -3.240338163916843,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.023643249400513,
+                                            -0.099072607348129,
+                                            -2.125894336933828,
+                                            -0.834751913294389,
+                                            -2.376337095979029,
+                                            -2.389415079554638,
+                                            -1.794084555142294,
+                                            -2.827353038326268,
+                                            -2.729239749400072,
+                                            -3.944881773513863,
+                                            -2.655251442818766,
+                                            -3.240338163916843,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -397,7 +474,6 @@ TEST_F(vectorOperationsTest, subLowerVector) {
         y[i] = std::sqrt(i);
     }
 
-
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
@@ -406,13 +482,26 @@ TEST_F(vectorOperationsTest, subLowerVector) {
                                      2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -3.80463818213957, -3.02869386860718, -4.135267728190652, -3.965987567246114,
-        -4.731916605505671, -4.316879652723403, -4.835730205766986, -4.834272262656975
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -3.80463818213957,
+                                            -3.02869386860718,
+                                            -4.135267728190652,
+                                            -3.965987567246114,
+                                            -4.731916605505671,
+                                            -4.316879652723403,
+                                            -4.835730205766986,
+                                            -4.834272262656975};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -431,21 +520,39 @@ TEST_F(vectorOperationsTest, scaleFullVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
-    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0, b.blockCountX);
+    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0,
+                                       b.blockCountX);
     queue.wait();
 
     std::vector<conf::fp_type> reference = {
-        0.029189009979898, 1.112248921872294, -0.878612617041698, 1.107769322915512,
-        -0.46461072521187, -0.189316198312834, 0.809137028453929, -0.224198228408177,
-        0.122452766107305, -1.166513242309275, 0.625954286891139, 0.094180417535984,
-        -0.420412824157762, 0.712165080209142, -0.485935583099414, -0.114819291125534,
-        -0.903594964493081, -0.239225662903664, -0.732204596141706, -0.586876884848221,
-        0.0, 0.0, 0.0, 0.0,
+        0.029189009979898,
+        1.112248921872294,
+        -0.878612617041698,
+        1.107769322915512,
+        -0.46461072521187,
+        -0.189316198312834,
+        0.809137028453929,
+        -0.224198228408177,
+        0.122452766107305,
+        -1.166513242309275,
+        0.625954286891139,
+        0.094180417535984,
+        -0.420412824157762,
+        0.712165080209142,
+        -0.485935583099414,
+        -0.114819291125534,
+        -0.903594964493081,
+        -0.239225662903664,
+        -0.732204596141706,
+        -0.586876884848221,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
     };
 
     EXPECT_EQ(result.size(), reference.size());
@@ -461,23 +568,39 @@ TEST_F(vectorOperationsTest, scaleUpperVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale upper 3 blocks of b
-    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0, 2);
+    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 0,
+                                       2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.029189009979898, 1.112248921872294, -0.878612617041698, 1.107769322915512,
-        -0.46461072521187, -0.189316198312834, 0.809137028453929, -0.224198228408177,
-        0.122452766107305, -1.166513242309275, 0.625954286891139, 0.094180417535984,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.029189009979898,
+                                            1.112248921872294,
+                                            -0.878612617041698,
+                                            1.107769322915512,
+                                            -0.46461072521187,
+                                            -0.189316198312834,
+                                            0.809137028453929,
+                                            -0.224198228408177,
+                                            0.122452766107305,
+                                            -1.166513242309275,
+                                            0.625954286891139,
+                                            0.094180417535984,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -492,23 +615,39 @@ TEST_F(vectorOperationsTest, scaleLowerVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale lower 2 blocks of b
-    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 2, 2);
+    VectorOperations::scaleVectorBlock(queue, b.rightHandSideData.data(), 1.23456, result.data(), 2,
+                                       2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -0.420412824157762, 0.712165080209142, -0.485935583099414, -0.114819291125534,
-        -0.903594964493081, -0.239225662903664, -0.732204596141706, -0.586876884848221,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -0.420412824157762,
+                                            0.712165080209142,
+                                            -0.485935583099414,
+                                            -0.114819291125534,
+                                            -0.903594964493081,
+                                            -0.239225662903664,
+                                            -0.732204596141706,
+                                            -0.586876884848221,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -525,24 +664,40 @@ TEST_F(vectorOperationsTest, scaleAndAddFullVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
-    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456, b.rightHandSideData.data(),
-                                             result.data(), 0, b.blockCountX);
+    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456,
+                                             b.rightHandSideData.data(), result.data(), 0,
+                                             b.blockCountX);
     queue.wait();
 
     std::vector<conf::fp_type> reference = {
-        0.052832259380411, 2.013176314524164, -1.59029339160243,
-        2.005068217189999, -0.840947821190899, -0.342663300367683,
-        1.464542216094813, -0.405799955669854, 0.221640141453424,
-        -2.111395015823138, 1.132980504240752, 0.170467043974541,
-        -0.760949391159577, 1.28902248706595, -0.879545924516124,
-        -0.207823512164231, -1.635511569998751, -0.432999690009406,
-        -1.325294114789406, -1.062250203964522,
-        0.0, 0.0, 0.0, 0.0,
+        0.052832259380411,
+        2.013176314524164,
+        -1.59029339160243,
+        2.005068217189999,
+        -0.840947821190899,
+        -0.342663300367683,
+        1.464542216094813,
+        -0.405799955669854,
+        0.221640141453424,
+        -2.111395015823138,
+        1.132980504240752,
+        0.170467043974541,
+        -0.760949391159577,
+        1.28902248706595,
+        -0.879545924516124,
+        -0.207823512164231,
+        -1.635511569998751,
+        -0.432999690009406,
+        -1.325294114789406,
+        -1.062250203964522,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
     };
 
     EXPECT_EQ(result.size(), reference.size());
@@ -552,32 +707,45 @@ TEST_F(vectorOperationsTest, scaleAndAddFullVectorPadding) {
     }
 }
 
-
 TEST_F(vectorOperationsTest, scaleAndAddUpperVectorPadding) {
     queue queue(cpu_selector_v);
     conf::matrixBlockSize = 6;
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale upper 3 blocks of b
-    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456, b.rightHandSideData.data(),
-                                             result.data(), 0, 2);
+    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456,
+                                             b.rightHandSideData.data(), result.data(), 0, 2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.052832259380411, 2.013176314524164, -1.59029339160243,
-        2.005068217189999, -0.840947821190899, -0.342663300367683,
-        1.464542216094813, -0.405799955669854, 0.221640141453424,
-        -2.111395015823138, 1.132980504240752, 0.170467043974541,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.052832259380411,
+                                            2.013176314524164,
+                                            -1.59029339160243,
+                                            2.005068217189999,
+                                            -0.840947821190899,
+                                            -0.342663300367683,
+                                            1.464542216094813,
+                                            -0.405799955669854,
+                                            0.221640141453424,
+                                            -2.111395015823138,
+                                            1.132980504240752,
+                                            0.170467043974541,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -592,25 +760,39 @@ TEST_F(vectorOperationsTest, scaleAndAddLowerVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // scale lower 2 blocks of b
-    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456, b.rightHandSideData.data(),
-                                             result.data(), 2, 2);
+    VectorOperations::scaleAndAddVectorBlock(queue, b.rightHandSideData.data(), 1.23456,
+                                             b.rightHandSideData.data(), result.data(), 2, 2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -0.760949391159577, 1.28902248706595, -0.879545924516124,
-        -0.207823512164231, -1.635511569998751, -0.432999690009406,
-        -1.325294114789406, -1.062250203964522,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -0.760949391159577,
+                                            1.28902248706595,
+                                            -0.879545924516124,
+                                            -0.207823512164231,
+                                            -1.635511569998751,
+                                            -0.432999690009406,
+                                            -1.325294114789406,
+                                            -1.062250203964522,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -627,24 +809,39 @@ TEST_F(vectorOperationsTest, addFullVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // add complete vectors b + b
-    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 0,
-                                     b.blockCountX);
+    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(),
+                                     result.data(), 0, b.blockCountX);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.047286498801027, 1.801854785303741, -1.423361549121465, 1.794597788548975,
-        -0.752674191958058, -0.306694204109697, 1.310810375281767, -0.363203454523355,
-        0.198374750692238, -1.889763547027727, 1.014052434699226, 0.152573252877113,
-        -0.681073134003631, 1.153714813713617, -0.78722068283342, -0.186008442077394,
-        -1.463833211011341, -0.387548054211483, -1.186179037295402, -0.950746638232602,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.047286498801027,
+                                            1.801854785303741,
+                                            -1.423361549121465,
+                                            1.794597788548975,
+                                            -0.752674191958058,
+                                            -0.306694204109697,
+                                            1.310810375281767,
+                                            -0.363203454523355,
+                                            0.198374750692238,
+                                            -1.889763547027727,
+                                            1.014052434699226,
+                                            0.152573252877113,
+                                            -0.681073134003631,
+                                            1.153714813713617,
+                                            -0.78722068283342,
+                                            -0.186008442077394,
+                                            -1.463833211011341,
+                                            -0.387548054211483,
+                                            -1.186179037295402,
+                                            -0.950746638232602,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -659,24 +856,39 @@ TEST_F(vectorOperationsTest, addUpperVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // add upper 3 blocks of b + b
-    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 0,
-                                     2);
+    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(),
+                                     result.data(), 0, 2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.047286498801027, 1.801854785303741, -1.423361549121465, 1.794597788548975,
-        -0.752674191958058, -0.306694204109697, 1.310810375281767, -0.363203454523355,
-        0.198374750692238, -1.889763547027727, 1.014052434699226, 0.152573252877113,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.047286498801027,
+                                            1.801854785303741,
+                                            -1.423361549121465,
+                                            1.794597788548975,
+                                            -0.752674191958058,
+                                            -0.306694204109697,
+                                            1.310810375281767,
+                                            -0.363203454523355,
+                                            0.198374750692238,
+                                            -1.889763547027727,
+                                            1.014052434699226,
+                                            0.152573252877113,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -691,24 +903,39 @@ TEST_F(vectorOperationsTest, addLowerVectorPadding) {
     conf::workGroupSize = 3;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
     // add lower 2 blocks of b + b
-    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 2,
-                                     2);
+    VectorOperations::addVectorBlock(queue, b.rightHandSideData.data(), b.rightHandSideData.data(),
+                                     result.data(), 2, 2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -0.681073134003631, 1.153714813713617, -0.78722068283342, -0.186008442077394,
-        -1.463833211011341, -0.387548054211483, -1.186179037295402, -0.950746638232602,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -0.681073134003631,
+                                            1.153714813713617,
+                                            -0.78722068283342,
+                                            -0.186008442077394,
+                                            -1.463833211011341,
+                                            -0.387548054211483,
+                                            -1.186179037295402,
+                                            -0.950746638232602,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -742,14 +969,30 @@ TEST_F(vectorOperationsTest, subFullVectorPadding) {
                                      b.blockCountX);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.023643249400513, -0.099072607348129, -2.125894336933828, -0.834751913294389,
-        -2.376337095979029, -2.389415079554638, -1.794084555142294, -2.827353038326268,
-        -2.729239749400072, -3.944881773513863, -2.655251442818766, -3.240338163916843,
-        -3.80463818213957, -3.02869386860718, -4.135267728190652, -3.965987567246114,
-        -4.731916605505671, -4.316879652723403, -4.835730205766986, -4.834272262656975,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.023643249400513,
+                                            -0.099072607348129,
+                                            -2.125894336933828,
+                                            -0.834751913294389,
+                                            -2.376337095979029,
+                                            -2.389415079554638,
+                                            -1.794084555142294,
+                                            -2.827353038326268,
+                                            -2.729239749400072,
+                                            -3.944881773513863,
+                                            -2.655251442818766,
+                                            -3.240338163916843,
+                                            -3.80463818213957,
+                                            -3.02869386860718,
+                                            -4.135267728190652,
+                                            -3.965987567246114,
+                                            -4.731916605505671,
+                                            -4.316879652723403,
+                                            -4.835730205766986,
+                                            -4.834272262656975,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -773,7 +1016,6 @@ TEST_F(vectorOperationsTest, subUpperVectorPadding) {
         y[i] = std::sqrt(i);
     }
 
-
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
@@ -782,14 +1024,30 @@ TEST_F(vectorOperationsTest, subUpperVectorPadding) {
                                      2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.023643249400513, -0.099072607348129, -2.125894336933828, -0.834751913294389,
-        -2.376337095979029, -2.389415079554638, -1.794084555142294, -2.827353038326268,
-        -2.729239749400072, -3.944881773513863, -2.655251442818766, -3.240338163916843,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.023643249400513,
+                                            -0.099072607348129,
+                                            -2.125894336933828,
+                                            -0.834751913294389,
+                                            -2.376337095979029,
+                                            -2.389415079554638,
+                                            -1.794084555142294,
+                                            -2.827353038326268,
+                                            -2.729239749400072,
+                                            -3.944881773513863,
+                                            -2.655251442818766,
+                                            -3.240338163916843,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -813,7 +1071,6 @@ TEST_F(vectorOperationsTest, subLowerVectorPadding) {
         y[i] = std::sqrt(i);
     }
 
-
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
@@ -822,14 +1079,30 @@ TEST_F(vectorOperationsTest, subLowerVectorPadding) {
                                      2);
     queue.wait();
 
-    std::vector<conf::fp_type> reference = {
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        -3.80463818213957, -3.02869386860718, -4.135267728190652, -3.965987567246114,
-        -4.731916605505671, -4.316879652723403, -4.835730205766986, -4.834272262656975,
-        0.0, 0.0, 0.0, 0.0
-    };
+    std::vector<conf::fp_type> reference = {0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            -3.80463818213957,
+                                            -3.02869386860718,
+                                            -4.135267728190652,
+                                            -3.965987567246114,
+                                            -4.731916605505671,
+                                            -4.316879652723403,
+                                            -4.835730205766986,
+                                            -4.834272262656975,
+                                            0.0,
+                                            0.0,
+                                            0.0,
+                                            0.0};
 
     EXPECT_EQ(result.size(), reference.size());
 
@@ -846,14 +1119,13 @@ TEST_F(vectorOperationsTest, scalarProuctFull) {
     conf::workGroupSizeVector = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size(), -100);
 
     unsigned int workGroupCount = VectorOperations::scalarProduct(queue, b.rightHandSideData.data(),
-                                                                  b.rightHandSideData.data(), result.data(), 0,
-                                                                  b.blockCountX);
+                                                                  b.rightHandSideData.data(),
+                                                                  result.data(), 0, b.blockCountX);
     queue.wait();
     VectorOperations::sumFinalScalarProduct(queue, result.data(), workGroupCount);
     queue.wait();
@@ -867,13 +1139,12 @@ TEST_F(vectorOperationsTest, scalarProuctLowerVector) {
     conf::workGroupSizeVector = 2;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
-    unsigned int workGroupCount = VectorOperations::scalarProduct(queue, b.rightHandSideData.data(),
-                                                                  b.rightHandSideData.data(), result.data(), 2, 2);
+    unsigned int workGroupCount = VectorOperations::scalarProduct(
+        queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 2, 2);
     queue.wait();
 
     VectorOperations::sumFinalScalarProduct(queue, result.data(), workGroupCount);
@@ -896,13 +1167,12 @@ TEST_F(vectorOperationsTest, scalarProuctLongVector) {
         vector[i] = std::sqrt(i);
     }
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(1024, -100);
 
-    unsigned int workGroupCount = VectorOperations::scalarProduct(queue, vector.data(),
-                                                                  vector.data(), result.data(), 0, 8);
+    unsigned int workGroupCount =
+        VectorOperations::scalarProduct(queue, vector.data(), vector.data(), result.data(), 0, 8);
     queue.wait();
 
     VectorOperations::sumFinalScalarProduct(queue, result.data(), workGroupCount);
@@ -931,8 +1201,8 @@ TEST_F(vectorOperationsTest, scalarProuctLowerLongVector) {
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(1024, -100);
 
-    unsigned int workGroupCount = VectorOperations::scalarProduct(queue, vector.data(),
-                                                                  vector.data(), result.data(), 4, 4);
+    unsigned int workGroupCount =
+        VectorOperations::scalarProduct(queue, vector.data(), vector.data(), result.data(), 4, 4);
     queue.wait();
 
     VectorOperations::sumFinalScalarProduct(queue, result.data(), workGroupCount);
@@ -941,7 +1211,6 @@ TEST_F(vectorOperationsTest, scalarProuctLowerLongVector) {
     EXPECT_NEAR(result[0], resultValue, 1e-12);
 }
 
-
 // Test scalar product CPU
 TEST_F(vectorOperationsTest, scalarProductFull_CPU) {
     queue queue(cpu_selector_v);
@@ -949,14 +1218,13 @@ TEST_F(vectorOperationsTest, scalarProductFull_CPU) {
     conf::workGroupSizeVector = 4;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size(), -100);
 
-    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(queue, b.rightHandSideData.data(),
-                                                                      b.rightHandSideData.data(), result.data(), 0,
-                                                                      b.blockCountX);
+    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(
+        queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 0,
+        b.blockCountX);
     queue.wait();
     VectorOperations::sumFinalScalarProduct_CPU(queue, result.data(), workGroupCount);
     queue.wait();
@@ -970,13 +1238,12 @@ TEST_F(vectorOperationsTest, scalarProductLowerVector_CPU) {
     conf::workGroupSizeVector = 2;
     RightHandSide b = MatrixParser::parseRightHandSide(path_b, queue);
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(b.rightHandSideData.size());
 
-    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(queue, b.rightHandSideData.data(),
-                                                                      b.rightHandSideData.data(), result.data(), 2, 2);
+    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(
+        queue, b.rightHandSideData.data(), b.rightHandSideData.data(), result.data(), 2, 2);
     queue.wait();
 
     VectorOperations::sumFinalScalarProduct_CPU(queue, result.data(), workGroupCount);
@@ -999,13 +1266,12 @@ TEST_F(vectorOperationsTest, scalarProductLongVector_CPU) {
         vector[i] = std::sqrt(i);
     }
 
-
     const usm_allocator<conf::fp_type, usm::alloc::host> allocator{queue};
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(1024, -100);
 
-    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(queue, vector.data(),
-                                                                      vector.data(), result.data(), 0, 8);
+    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(
+        queue, vector.data(), vector.data(), result.data(), 0, 8);
     queue.wait();
 
     VectorOperations::sumFinalScalarProduct_CPU(queue, result.data(), workGroupCount);
@@ -1034,8 +1300,8 @@ TEST_F(vectorOperationsTest, scalarProductLowerLongVector_CPU) {
     std::vector<conf::fp_type, usm_allocator<conf::fp_type, usm::alloc::host>> result(allocator);
     result.resize(1024, -100);
 
-    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(queue, vector.data(),
-                                                                      vector.data(), result.data(), 4, 4);
+    unsigned int workGroupCount = VectorOperations::scalarProduct_CPU(
+        queue, vector.data(), vector.data(), result.data(), 4, 4);
     queue.wait();
 
     VectorOperations::sumFinalScalarProduct_CPU(queue, result.data(), workGroupCount);

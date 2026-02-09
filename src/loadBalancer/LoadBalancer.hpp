@@ -8,12 +8,14 @@
  * Abstract class from which all load balancer implementations are derived from
  */
 class LoadBalancer {
-public:
+  public:
     LoadBalancer(int updateInterval, double initialProportionGPU, int blockCountXY);
 
     /**
-     * Abstract method that gets implemented in child classes and determines a new load distribution between the GPU and CPU
-     * @param metricsTracker A metrics tracker object that stores runtime metrices and can be used to calculate the new split.
+     * Abstract method that gets implemented in child classes and determines a new load distribution
+     * between the GPU and CPU
+     * @param metricsTracker A metrics tracker object that stores runtime metrices and can be used
+     * to calculate the new split.
      * @return the new GPU proportion
      */
     virtual double getNewProportionGPU(MetricsTracker &metricsTracker) = 0;
@@ -27,5 +29,4 @@ public:
     virtual ~LoadBalancer() {}
 };
 
-
-#endif //HETEROGENEOUS_CONJUGATE_GRADIENTS_LOADBALANCER_HPP
+#endif // HETEROGENEOUS_CONJUGATE_GRADIENTS_LOADBALANCER_HPP

@@ -13,15 +13,15 @@ SymmetricMatrixMixed::SymmetricMatrixMixed(const std::size_t N, const int blockS
       blockByteOffsets(sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>(queue)),
       // allocate float, needs to be resized to actual size anyway
       matrixData(sycl::usm_allocator<unsigned char, sycl::usm::alloc::host>(queue)) {
-  // allocate memory for matrix storage
-  const std::size_t blockCount = (blockCountXY * (blockCountXY + 1)) / 2.0;
-  precisionTypes.resize(blockCount);
-  blockRanks.resize(blockCount);
-  blockByteOffsets.resize(blockCount);
+    // allocate memory for matrix storage
+    const std::size_t blockCount = (blockCountXY * (blockCountXY + 1)) / 2.0;
+    precisionTypes.resize(blockCount);
+    blockRanks.resize(blockCount);
+    blockByteOffsets.resize(blockCount);
 }
 
 void SymmetricMatrixMixed::allocate(size_t total_bytes) {
-  matrixData.resize(total_bytes);
-  // Add sentinel for safe offset range computation
-  blockByteOffsets.push_back(total_bytes);
+    matrixData.resize(total_bytes);
+    // Add sentinel for safe offset range computation
+    blockByteOffsets.push_back(total_bytes);
 }

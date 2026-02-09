@@ -3,8 +3,9 @@
 
 using namespace sycl;
 
-void VectorOperations::scaleVectorBlock(queue &queue, const conf::fp_type *x, const conf::fp_type alpha,
-                                        conf::fp_type *result, const int blockStart_i, const int blockCount_i) {
+void VectorOperations::scaleVectorBlock(queue &queue, const conf::fp_type *x,
+                                        const conf::fp_type alpha, conf::fp_type *result,
+                                        const int blockStart_i, const int blockCount_i) {
     // global range corresponds to number of rows in the (sub) vector
     const range globalRange(blockCount_i * conf::matrixBlockSize);
     const range localRange(conf::workGroupSize);
@@ -23,8 +24,8 @@ void VectorOperations::scaleVectorBlock(queue &queue, const conf::fp_type *x, co
 }
 
 void VectorOperations::addVectorBlock(queue &queue, const conf::fp_type *x, const conf::fp_type *y,
-                                      conf::fp_type *result,
-                                      const int blockStart_i, const int blockCount_i) {
+                                      conf::fp_type *result, const int blockStart_i,
+                                      const int blockCount_i) {
     // global range corresponds to number of rows in the (sub) vector
     const range globalRange(blockCount_i * conf::matrixBlockSize);
     const range localRange(conf::workGroupSize);
@@ -43,7 +44,8 @@ void VectorOperations::addVectorBlock(queue &queue, const conf::fp_type *x, cons
 }
 
 void VectorOperations::subVectorBlock(queue &queue, const conf::fp_type *x, const conf::fp_type *y,
-                                      conf::fp_type *result, const int blockStart_i, const int blockCount_i) {
+                                      conf::fp_type *result, const int blockStart_i,
+                                      const int blockCount_i) {
     // global range corresponds to number of rows in the (sub) vector
     const range globalRange(blockCount_i * conf::matrixBlockSize);
     const range localRange(conf::workGroupSize);
@@ -61,8 +63,9 @@ void VectorOperations::subVectorBlock(queue &queue, const conf::fp_type *x, cons
     });
 }
 
-void VectorOperations::scaleAndAddVectorBlock(sycl::queue &queue, const conf::fp_type *x, conf::fp_type alpha,
-                                              const conf::fp_type *y, conf::fp_type *result, const int blockStart_i,
+void VectorOperations::scaleAndAddVectorBlock(sycl::queue &queue, const conf::fp_type *x,
+                                              conf::fp_type alpha, const conf::fp_type *y,
+                                              conf::fp_type *result, const int blockStart_i,
                                               const int blockCount_i) {
     // global range corresponds to number of rows in the (sub) vector
     const range globalRange(blockCount_i * conf::matrixBlockSize);
@@ -81,8 +84,8 @@ void VectorOperations::scaleAndAddVectorBlock(sycl::queue &queue, const conf::fp
     });
 }
 
-unsigned int VectorOperations::scalarProduct(queue &queue, const conf::fp_type *x, const conf::fp_type *y,
-                                             conf::fp_type *result,
+unsigned int VectorOperations::scalarProduct(queue &queue, const conf::fp_type *x,
+                                             const conf::fp_type *y, conf::fp_type *result,
                                              const int blockStart_i, const int blockCount_i) {
     const unsigned int matrixBlockSize = conf::matrixBlockSize;
     const unsigned int workGroupSize = conf::workGroupSizeVector;
@@ -91,8 +94,8 @@ unsigned int VectorOperations::scalarProduct(queue &queue, const conf::fp_type *
     assert((vectorLength) % 2 == 0);
 
     const unsigned int globalSize = vectorLength / 2;
-    const unsigned int workGroupCount = std::ceil(
-            static_cast<conf::fp_type>(globalSize) / static_cast<conf::fp_type>(workGroupSize));
+    const unsigned int workGroupCount = std::ceil(static_cast<conf::fp_type>(globalSize) /
+                                                  static_cast<conf::fp_type>(workGroupSize));
     const unsigned int globalSizePadding = workGroupCount * workGroupSize;
 
     assert(globalSizePadding % workGroupSize == 0);
@@ -103,7 +106,6 @@ unsigned int VectorOperations::scalarProduct(queue &queue, const conf::fp_type *
     const range localRange(workGroupSize);
     const auto kernelRange = nd_range{globalRange, localRange};
 
-
     // based on https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
     queue.submit([&](handler &h) {
         local_accessor<conf::fp_type> cache(workGroupSize, h);
@@ -112,7 +114,8 @@ unsigned int VectorOperations::scalarProduct(queue &queue, const conf::fp_type *
             // row i in the matrix
             const int offset = blockStart_i * matrixBlockSize;
             const unsigned int localID = nd_item.get_local_id();
-            const unsigned int globalIndex = offset + nd_item.get_group(0) * (workGroupSize * 2) + localID;
+            const unsigned int globalIndex =
+                offset + nd_item.get_group(0) * (workGroupSize * 2) + localID;
 
             cache[localID] = 0;
             if (globalIndex < offset + vectorLength) {
@@ -139,7 +142,8 @@ unsigned int VectorOperations::scalarProduct(queue &queue, const conf::fp_type *
     return workGroupCount;
 }
 
-void VectorOperations::sumFinalScalarProduct(queue &queue, conf::fp_type *result, const unsigned int workGroupCount) {
+void VectorOperations::sumFinalScalarProduct(queue &queue, conf::fp_type *result,
+                                             const unsigned int workGroupCount) {
     const unsigned int workGroupSize = conf::workGroupSizeFinalScalarProduct;
 
     if (2 * workGroupSize < workGroupCount) {
@@ -150,7 +154,6 @@ void VectorOperations::sumFinalScalarProduct(queue &queue, conf::fp_type *result
     const range globalRange(workGroupSize);
     const range localRange(workGroupSize);
     const auto kernelRange = nd_range{globalRange, localRange};
-
 
     // based on https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf
     queue.submit([&](handler &h) {
@@ -184,26 +187,30 @@ void VectorOperations::sumFinalScalarProduct(queue &queue, conf::fp_type *result
     });
 }
 
-unsigned int VectorOperations::scalarProduct_CPU(queue &queue, const conf::fp_type *x, const conf::fp_type *y,
-                                                 conf::fp_type *result, int blockStart_i, int blockCount_i) {
+unsigned int VectorOperations::scalarProduct_CPU(queue &queue, const conf::fp_type *x,
+                                                 const conf::fp_type *y, conf::fp_type *result,
+                                                 int blockStart_i, int blockCount_i) {
 
     if (!queue.get_device().is_cpu()) {
-        std::cerr << "\033[93m[WARNING]\033[0m Using CPU scalar product kernel on a device that is no CPU!"
+        std::cerr << "\033[93m[WARNING]\033[0m Using CPU scalar product kernel on a device that is "
+                     "no CPU!"
                   << std::endl;
     }
 
     const unsigned int matrixBlockSize = conf::matrixBlockSize;
     const unsigned int vectorLength = blockCount_i * matrixBlockSize;
-    const unsigned int coreCount = queue.get_device().get_info<sycl::info::device::max_compute_units>();
-    const unsigned int elementsPerCore = std::ceil(static_cast<double>(vectorLength) / static_cast<double>(coreCount));
+    const unsigned int coreCount =
+        queue.get_device().get_info<sycl::info::device::max_compute_units>();
+    const unsigned int elementsPerCore =
+        std::ceil(static_cast<double>(vectorLength) / static_cast<double>(coreCount));
 
     const range globalRange(coreCount);
 
     queue.submit([&](handler &h) {
         h.parallel_for(globalRange, [=](auto &id) {
-
             const int start_i = id[0] * elementsPerCore + blockStart_i * matrixBlockSize;
-            const int end_i = sycl::min(start_i + elementsPerCore, blockStart_i * matrixBlockSize + vectorLength);
+            const int end_i =
+                sycl::min(start_i + elementsPerCore, blockStart_i * matrixBlockSize + vectorLength);
 
             double resultValue = 0.0;
             for (int i = start_i; i < end_i; ++i) {
@@ -214,19 +221,20 @@ unsigned int VectorOperations::scalarProduct_CPU(queue &queue, const conf::fp_ty
         });
     });
 
-
     return coreCount;
 }
 
-void VectorOperations::sumFinalScalarProduct_CPU(queue &queue, conf::fp_type *result, unsigned int workGroupCount) {
+void VectorOperations::sumFinalScalarProduct_CPU(queue &queue, conf::fp_type *result,
+                                                 unsigned int workGroupCount) {
 
     if (!queue.get_device().is_cpu()) {
-        std::cerr << "\033[93m[WARNING]\033[0m Using CPU scalar product kernel on a device that is no CPU!"
+        std::cerr << "\033[93m[WARNING]\033[0m Using CPU scalar product kernel on a device that is "
+                     "no CPU!"
                   << std::endl;
     }
 
     queue.submit([&](handler &h) {
-        h.single_task( [=]() {
+        h.single_task([=]() {
             double resultValue = 0.0;
             for (unsigned int i = 0; i < workGroupCount; ++i) {
                 resultValue += result[i];
