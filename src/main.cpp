@@ -234,8 +234,8 @@ int main(int argc, char *argv[]) {
     std::optional<SymmetricMatrix> A;
 
     if (conf::mixed) {
-        A_mixed.emplace(
-            MatrixGeneratorMixed::generateSPDMatrixMixed(path_gp_input, cpuQueue, gpuQueue));
+        A_mixed.emplace(MatrixGeneratorMixed::generateSPDMatrixMixed_optimized(path_gp_input,
+                                                                               cpuQueue, gpuQueue));
     } else {
         A.emplace(generateMatrix
                       ? MatrixGenerator::generateSPDMatrix(path_gp_input, cpuQueue, gpuQueue)

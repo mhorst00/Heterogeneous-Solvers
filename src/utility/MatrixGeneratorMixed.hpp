@@ -24,6 +24,18 @@ class MatrixGeneratorMixed {
                                                        sycl::queue &queueGPU);
 
     /**
+     * This operation generates a mixed precision SPD kernel matrix that can be
+     * used for Gaussian Processes but faster
+     *
+     * @param path path to text file with data
+     * @param queue CPU queue
+     * @param queueGPU GPU queue
+     * @return a SPD matrix
+     */
+    static SymmetricMatrixMixed
+    generateSPDMatrixMixed_optimized(std::string &path, sycl::queue &queue, sycl::queue &queueGPU);
+
+    /**
      * This operation generates the test kernel matrix K* used required for
      * prediction with Gaussian Processes.
      *
@@ -43,6 +55,28 @@ class MatrixGeneratorMixed {
         std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
             &dataVector,
         int N, int offset);
+
+    template <typename T>
+    static void matrixKernel(sycl::queue &queue, T *matrixData, conf::fp_type *trainingData,
+                             const std::size_t matrixBlockSize, const std::size_t N,
+                             const std::size_t i_block, const std::size_t j_block,
+                             const std::size_t nRegressors, const double noiseVariance,
+                             const double verticalLengthscale, const double lengthscale);
+
+    static void matrixKernel_optimizedFP16(sycl::half *matrixData, conf::fp_type *trainingData,
+                                           const std::size_t i_block, const std::size_t j_block,
+                                           const std::size_t matrixBlockSize, const std::size_t N,
+                                           const std::size_t nRegressors);
+
+    static void matrixKernel_optimizedFP32(float *matrixData, conf::fp_type *trainingData,
+                                           const std::size_t i_block, const std::size_t j_block,
+                                           const std::size_t matrixBlockSize, const std::size_t N,
+                                           const std::size_t nRegressors);
+
+    static void matrixKernel_optimizedFP64(double *matrixData, conf::fp_type *trainingData,
+                                           const std::size_t i_block, const std::size_t j_block,
+                                           const std::size_t matrixBlockSize, const std::size_t N,
+                                           const std::size_t nRegressors);
 };
 
 #endif // MATRIXGENERATORMIXED_HPP
