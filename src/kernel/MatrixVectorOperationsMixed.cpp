@@ -199,10 +199,10 @@ sycl::event MatrixVectorOperationsMixed::matrixVectorBlock_GPU(
                 int precision_type = precisionTypes[blockID];
 
                 // cache part of rhs b in local memory
-                nd_item.barrier();
+                group_barrier(nd_item.get_group(), memory_scope::work_group);
                 local_b[nd_item.get_local_id()] =
                     b[block_j * matrixBlockSize + nd_item.get_local_id()];
-                nd_item.barrier();
+                group_barrier(nd_item.get_group(), memory_scope::work_group);
 
                 // go through all columns of the block and compute the matrix vector
                 // product
