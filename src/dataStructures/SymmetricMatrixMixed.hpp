@@ -67,7 +67,7 @@ class SymmetricMatrixMixed {
         blockByteOffsets;
 
     /// internal matrix data structure allocated as SYCL host memory
-    std::vector<unsigned char, sycl::usm_allocator<unsigned char, sycl::usm::alloc::host>>
+    std::vector<unsigned char, sycl::usm_allocator<unsigned char, sycl::usm::alloc::shared>>
         matrixData;
 
     void allocate(size_t total_bytes);
