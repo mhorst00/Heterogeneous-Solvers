@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 option(ENABLE_TESTS "Enable Test" OFF)
 option(USE_DOUBLE "Use FP64 precision instead of FP32 for floating point data types" ON)
+option(SHARED_MEMORY "Enable shared memory allocation for matrix data" OFF)
 set(GPU_VENDOR "NVIDIA" CACHE STRING "GPU vendor: NVIDIA, AMD and INTEL are supported")
 set(HWS_SAMPLING_INTERVAL_DEFAULT 10 CACHE STRING "Default sampling interval for the hws library")
 
@@ -129,6 +130,11 @@ endif ()
 
 if (${USE_DPCPP})
     target_compile_definitions(heterogeneous_solvers_lib PUBLIC USE_DPCPP=1)
+endif ()
+
+# enable shared memory allocation for matrix data
+if (SHARED_MEMORY)
+        target_compile_definitions(heterogeneous_solvers_lib PUBLIC SHARED_MEMORY=1)
 endif ()
 
 target_compile_definitions(heterogeneous_solvers_lib PUBLIC ${GPU_VENDOR})

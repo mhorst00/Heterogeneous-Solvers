@@ -9,13 +9,11 @@
 #include "MetricsTracker.hpp"
 #include "RightHandSide.hpp"
 #include "SymmetricMatrix.hpp"
-#include "SymmetricMatrixMixed.hpp"
 
 using namespace sycl;
 
 /**
- * This class contains the heterogeneous implementation of the CG algorithm that
- * solves Ax = b.
+ * This class contains the heterogeneous implementation of the CG algorithm that solves Ax = b.
  */
 class CG {
   public:
@@ -31,8 +29,8 @@ class CG {
     queue &cpuQueue; /// SYCL queue for the CPU device
     queue &gpuQueue; /// SYCL queue for the GPU device
 
-    std::shared_ptr<LoadBalancer> loadBalancer; /// load balancer to dynamically or statically
-                                                /// determine the CPU/GPU split
+    std::shared_ptr<LoadBalancer>
+        loadBalancer; /// load balancer to dynamically or statically determine the CPU/GPU split
     MetricsTracker metricsTracker; /// metrics tracker that tracks various runtime metrics
 
     void solveHeterogeneous(); /// main method that starts the solver
@@ -58,12 +56,11 @@ class CG {
     std::size_t blockCountCPU;
     std::size_t blockStartCPU;
 
-    std::size_t maxBlockCountGPU; /// maximum number of blocks in X/Y direction
-                                  /// for the GPU
+    std::size_t maxBlockCountGPU; /// maximum number of blocks in X/Y direction for the GPU
 
     /**
-     * Operation that shifts the horizontal split between the CPU and GPU and
-     * ensures that all data structures are consistent.
+     * Operation that shifts the horizontal split between the CPU and GPU and ensures that all data
+     * structures are consistent.
      *
      * @param gpuProportion
      */
@@ -85,8 +82,7 @@ class CG {
     void freeDataStructures();
 
     /**
-     * Method that performs the initial setup of the CG algorithm before the
-     * iterations start.
+     * Method that performs the initial setup of the CG algorithm before the iterations start.
      *
      * @param delta_zero reference to delta_zero value
      * @param delta_new reference to delta_new value

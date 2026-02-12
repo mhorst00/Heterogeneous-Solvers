@@ -8,7 +8,11 @@
 SymmetricMatrix::SymmetricMatrix(const std::size_t N, const int blockSize, sycl::queue &queue)
     : N(N), blockSize(blockSize),
       blockCountXY(std::ceil(static_cast<double>(N) / static_cast<double>(blockSize))),
+#ifdef SHARED_MEMORY
       matrixData(sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>(queue)) {
+#else
+      matrixData(sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>(queue)) {
+#endif // SHARED_MEMORY
     // allocate memory for matrix storage
     const std::size_t blockCount = (blockCountXY * (blockCountXY + 1)) / 2.0;
     matrixData.resize(blockCount * static_cast<std::size_t>(blockSize * blockSize));

@@ -1,13 +1,10 @@
 #include "CG.hpp"
 
-#include <cstddef>
 #include <iostream>
 #include <sycl/sycl.hpp>
 
-#include "Configuration.hpp"
+#include "MatrixParser.hpp"
 #include "MatrixVectorOperations.hpp"
-#include "MatrixVectorOperationsMixed.hpp"
-#include "SymmetricMatrixMixed.hpp"
 #include "UtilityFunctions.hpp"
 #include "VectorOperations.hpp"
 
@@ -15,7 +12,7 @@ using namespace sycl;
 
 CG::CG(SymmetricMatrix &A, RightHandSide &b, queue &cpuQueue, queue &gpuQueue,
        std::shared_ptr<LoadBalancer> loadBalancer)
-    : A(A), b(b), x(sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>(cpuQueue)),
+    : A(A), b(b), x(sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>(gpuQueue)),
       cpuQueue(cpuQueue), gpuQueue(gpuQueue), loadBalancer(std::move(loadBalancer)) {
     // check if dimensions match
     if (A.N != b.N) {
@@ -44,8 +41,8 @@ void CG::solveHeterogeneous() {
 
     // initialize data structures
     auto startMemInit = std::chrono::steady_clock::now();
-    initGPUdataStructures();
     initCPUdataStructures();
+    initGPUdataStructures();
     auto endMemInit = std::chrono::steady_clock::now();
     metricsTracker.memoryInitTime =
         std::chrono::duration<double, std::milli>(endMemInit - startMemInit).count();
@@ -90,8 +87,8 @@ void CG::solveHeterogeneous() {
 
         auto timePoint4 = std::chrono::steady_clock::now();
         if (iteration % 50 == 0) {
-            // compute real residual every 50 iterations --> requires additional
-            // matrix vector product
+            // compute real residual every 50 iterations --> requires additional matrix vector
+            // product
             computeRealResidual(); // r = b - Ax
         } else {
             // compute residual without an additional matrix vector product
@@ -135,7 +132,7 @@ void CG::solveHeterogeneous() {
     }
     waitAllQueues();
 
-    if (blockCountGPU != 0) {
+    if (blockCountGPU != 0 && conf::unifiedAddressSpace == false) {
         auto startMemCopy = std::chrono::steady_clock::now();
         gpuQueue
             .submit([&](handler &h) {
@@ -185,8 +182,8 @@ void CG::initGPUdataStructures() {
 
     std::size_t valuesGPU;
     if (maxBlocksGPUMemory < totalBlockCountA) {
-        // GPU memory is not sufficient to store the whole matrix --> calculate
-        // maximum number of rows that can be stored
+        // GPU memory is not sufficient to store the whole matrix --> calculate maximum number of
+        // rows that can be stored
 
         const double valueRoot =
             (2 * A.blockCountXY + 1) * (2 * A.blockCountXY + 1) - 8.0 * maxBlocksGPUMemory;
@@ -204,8 +201,8 @@ void CG::initGPUdataStructures() {
             maxBlockCountGPU = maxRowsGPUMemory;
 
             if (maxRowsGPUMemory < blockCountGPU || blockCountCPU == 0) {
-                throw std::runtime_error("GPU memory not sufficient for requested "
-                                         "split between GPU and CPU");
+                throw std::runtime_error(
+                    "GPU memory not sufficient for requested split between GPU and CPU");
             }
         } else {
             throw std::runtime_error(
@@ -217,37 +214,55 @@ void CG::initGPUdataStructures() {
         valuesGPU = A.matrixData.size();
     }
 
-    // Matrix A GPU
-    A_gpu = malloc_device<conf::fp_type>(valuesGPU, gpuQueue);
-    gpuQueue
-        .submit([&](handler &h) {
-            h.memcpy(A_gpu, A.matrixData.data(), valuesGPU * sizeof(conf::fp_type));
-        })
-        .wait();
+    if (conf::unifiedAddressSpace == false) {
+        // Matrix A GPU
+        A_gpu = malloc_device<conf::fp_type>(valuesGPU, gpuQueue);
+        gpuQueue
+            .submit([&](handler &h) {
+                h.memcpy(A_gpu, A.matrixData.data(), valuesGPU * sizeof(conf::fp_type));
+            })
+            .wait();
 
-    // Right-hand side b GPU
-    b_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
-    gpuQueue
-        .submit([&](handler &h) {
-            h.memcpy(b_gpu, b.rightHandSideData.data(),
-                     b.rightHandSideData.size() * sizeof(conf::fp_type));
-        })
-        .wait();
+        // Right-hand side b GPU
+        b_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        gpuQueue
+            .submit([&](handler &h) {
+                h.memcpy(b_gpu, b.rightHandSideData.data(),
+                         b.rightHandSideData.size() * sizeof(conf::fp_type));
+            })
+            .wait();
 
-    // result vector x
-    x_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // result vector x
+        x_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // residual vector r
-    r_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // residual vector r
+        r_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // vector d
-    d_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // vector d
+        d_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // vector q
-    q_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // vector q
+        q_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // temporary vector
-    tmp_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // temporary vector
+        tmp_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+    } else {
+        // data structures can now be shared between CPU and GPU
+        A_gpu = A.matrixData.data();
+
+        b_gpu = b.rightHandSideData.data();
+
+        x_gpu = x.data();
+
+        r_gpu = r_cpu;
+
+        d_gpu = d_cpu;
+
+        q_gpu = q_cpu;
+
+        // GPU needs to have its own tmp vector
+        tmp_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+    }
 
     if (A_gpu == nullptr || b_gpu == nullptr || x_gpu == nullptr || r_gpu == nullptr ||
         d_gpu == nullptr || q_gpu == nullptr || tmp_gpu == nullptr) {
@@ -256,7 +271,7 @@ void CG::initGPUdataStructures() {
 }
 
 void CG::initCPUdataStructures() {
-    if (blockCountCPU == 0) {
+    if (blockCountCPU == 0 && conf::unifiedAddressSpace == false) {
         return;
     }
 
@@ -278,7 +293,7 @@ void CG::initCPUdataStructures() {
 }
 
 void CG::freeDataStructures() {
-    if (blockCountGPU != 0) {
+    if (blockCountGPU != 0 && conf::unifiedAddressSpace == false) {
         sycl::free(A_gpu, gpuQueue);
         sycl::free(b_gpu, gpuQueue);
         sycl::free(x_gpu, gpuQueue);
@@ -371,9 +386,8 @@ void CG::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
 void CG::compute_q() {
     auto startmemcpy = std::chrono::steady_clock::now();
 
-    if ((blockCountGPU != 0 && blockCountCPU != 0)) {
-        // exchange parts of d vector so that both CPU and GPU hold the complete
-        // vector
+    if ((blockCountGPU != 0 && blockCountCPU != 0) && conf::unifiedAddressSpace == false) {
+        // exchange parts of d vector so that both CPU and GPU hold the complete vector
         gpuQueue.submit([&](handler &h) {
             h.memcpy(&d_gpu[blockStartCPU * conf::matrixBlockSize],
                      &d_cpu[blockStartCPU * conf::matrixBlockSize],
@@ -490,9 +504,8 @@ void CG::update_x(conf::fp_type alpha) {
 }
 
 void CG::computeRealResidual() {
-    if ((blockCountGPU != 0 && blockCountCPU != 0)) {
-        // exchange parts of x vector so that both CPU and GPU hold the complete
-        // vector
+    if ((blockCountGPU != 0 && blockCountCPU != 0) && conf::unifiedAddressSpace == false) {
+        // exchange parts of x vector so that both CPU and GPU hold the complete vector
         gpuQueue.submit([&](handler &h) {
             h.memcpy(&x_gpu[blockStartCPU * conf::matrixBlockSize],
                      &x[blockStartCPU * conf::matrixBlockSize],
@@ -606,8 +619,8 @@ void CG::rebalanceProportions(double &gpuProportion) {
 
     if (blockCountGPU_new > maxBlockCountGPU) {
         if (conf::printVerbose) {
-            std::cout << "Change in block counts would result into too much gpu "
-                         "memory usage. New GPU block count: "
+            std::cout << "Change in block counts would result into too much gpu memory usage. New "
+                         "GPU block count: "
                       << maxBlockCountGPU << std::endl;
         }
 
@@ -672,8 +685,7 @@ void CG::rebalanceProportions(double &gpuProportion) {
         blockStartCPU = blockStartCPU_new;
     } else if (blockCountGPU_new != blockCountGPU) {
         if (conf::printVerbose) {
-            std::cout << "Change in block counts smaller than threshold --> no "
-                         "re-balancing: "
+            std::cout << "Change in block counts smaller than threshold --> no re-balancing: "
                       << blockCountGPU << " --> " << blockCountGPU_new << std::endl;
         }
     }

@@ -51,8 +51,12 @@ class SymmetricMatrix {
     const int
         blockCountXY; /// block Count in X/Y direction (if the matrix would be stored completely)
 
-    /// internal matrix data structure allocated as SYCL host memory
+/// internal matrix data structure allocated as SYCL host memory
+#ifdef SHARED_MEMORY
     std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>>
+#else
+    std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>>
+#endif // SHARED_MEMORY
         matrixData;
 };
 

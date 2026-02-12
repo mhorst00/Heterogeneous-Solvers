@@ -1,7 +1,5 @@
 #include "CGMixed.hpp"
 
-#include <cstddef>
-#include <iostream>
 #include <sycl/sycl.hpp>
 
 #include "Configuration.hpp"
@@ -139,7 +137,7 @@ void CGMixed::solveHeterogeneous() {
     }
     waitAllQueues();
 
-    if (blockCountGPU != 0) {
+    if (blockCountGPU != 0 && conf::unifiedAddressSpace == false) {
         auto startMemCopy = std::chrono::steady_clock::now();
         gpuQueue
             .submit([&](handler &h) {
@@ -232,33 +230,51 @@ void CGMixed::initGPUdataStructures() {
         bytesGPU = A.blockByteOffsets[A.blockByteOffsets.size() - 1];
     }
 
-    // Matrix A GPU
-    A_gpu = malloc_device(bytesGPU, gpuQueue);
-    gpuQueue.submit([&](handler &h) { h.memcpy(A_gpu, A.matrixData.data(), bytesGPU); }).wait();
+    if (conf::unifiedAddressSpace == false) {
+        // Matrix A GPU
+        A_gpu = malloc_device(bytesGPU, gpuQueue);
+        gpuQueue.submit([&](handler &h) { h.memcpy(A_gpu, A.matrixData.data(), bytesGPU); }).wait();
 
-    // Right-hand side b GPU
-    b_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
-    gpuQueue
-        .submit([&](handler &h) {
-            h.memcpy(b_gpu, b.rightHandSideData.data(),
-                     b.rightHandSideData.size() * sizeof(conf::fp_type));
-        })
-        .wait();
+        // Right-hand side b GPU
+        b_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        gpuQueue
+            .submit([&](handler &h) {
+                h.memcpy(b_gpu, b.rightHandSideData.data(),
+                         b.rightHandSideData.size() * sizeof(conf::fp_type));
+            })
+            .wait();
 
-    // result vector x
-    x_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // result vector x
+        x_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // residual vector r
-    r_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // residual vector r
+        r_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // vector d
-    d_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // vector d
+        d_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // vector q
-    q_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // vector q
+        q_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
 
-    // temporary vector
-    tmp_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+        // temporary vector
+        tmp_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+    } else {
+        // data structures can now be shared between CPU and GPU
+        A_gpu = A.matrixData.data();
+
+        b_gpu = b.rightHandSideData.data();
+
+        x_gpu = x.data();
+
+        r_gpu = r_cpu;
+
+        d_gpu = d_cpu;
+
+        q_gpu = q_cpu;
+
+        // GPU needs to have its own tmp vector
+        tmp_gpu = malloc_device<conf::fp_type>(b.rightHandSideData.size(), gpuQueue);
+    }
 
     if (A_gpu == nullptr || b_gpu == nullptr || x_gpu == nullptr || r_gpu == nullptr ||
         d_gpu == nullptr || q_gpu == nullptr || tmp_gpu == nullptr) {
@@ -267,7 +283,7 @@ void CGMixed::initGPUdataStructures() {
 }
 
 void CGMixed::initCPUdataStructures() {
-    if (blockCountCPU == 0) {
+    if (blockCountCPU == 0 && conf::unifiedAddressSpace == false) {
         return;
     }
 
@@ -289,7 +305,7 @@ void CGMixed::initCPUdataStructures() {
 }
 
 void CGMixed::freeDataStructures() {
-    if (blockCountGPU != 0) {
+    if (blockCountGPU != 0 && conf::unifiedAddressSpace == false) {
         sycl::free(A_gpu, gpuQueue);
         sycl::free(b_gpu, gpuQueue);
         sycl::free(x_gpu, gpuQueue);
@@ -384,7 +400,7 @@ void CGMixed::initCG(conf::fp_type &delta_zero, conf::fp_type &delta_new) {
 void CGMixed::compute_q() {
     auto startmemcpy = std::chrono::steady_clock::now();
 
-    if ((blockCountGPU != 0 && blockCountCPU != 0)) {
+    if ((blockCountGPU != 0 && blockCountCPU != 0) && conf::unifiedAddressSpace == false) {
         // exchange parts of d vector so that both CPU and GPU hold the complete
         // vector
         gpuQueue.submit([&](handler &h) {
@@ -507,7 +523,7 @@ void CGMixed::update_x(conf::fp_type alpha) {
 }
 
 void CGMixed::computeRealResidual() {
-    if ((blockCountGPU != 0 && blockCountCPU != 0)) {
+    if ((blockCountGPU != 0 && blockCountCPU != 0) && conf::unifiedAddressSpace == false) {
         // exchange parts of x vector so that both CPU and GPU hold the complete
         // vector
         gpuQueue.submit([&](handler &h) {

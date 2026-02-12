@@ -11,8 +11,12 @@ SymmetricMatrixMixed::SymmetricMatrixMixed(const std::size_t N, const int blockS
       precisionTypes(sycl::usm_allocator<int, sycl::usm::alloc::shared>(queue)),
       blockRanks(sycl::usm_allocator<int, sycl::usm::alloc::shared>(queue)),
       blockByteOffsets(sycl::usm_allocator<std::size_t, sycl::usm::alloc::shared>(queue)),
-      // allocate float, needs to be resized to actual size anyway
-      matrixData(sycl::usm_allocator<unsigned char, sycl::usm::alloc::shared>(queue)) {
+// allocate float, needs to be resized to actual size anyway
+#ifdef SHARED_MEMORY
+      matrixData(sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::shared>(queue)) {
+#else
+      matrixData(sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>(queue)) {
+#endif // SHARED_MEMORY
     // allocate memory for matrix storage
     const std::size_t blockCount = (blockCountXY * (blockCountXY + 1)) / 2.0;
     precisionTypes.resize(blockCount);
