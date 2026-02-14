@@ -11,18 +11,24 @@ CholeskyMixed::CholeskyMixed(SymmetricMatrixMixed &A, queue &cpuQueue, queue &gp
     : A(A), cpuQueue(cpuQueue), gpuQueue(gpuQueue), loadBalancer(std::move(loadBalancer)) {}
 
 CholeskyMixed::~CholeskyMixed() {
-    if (conf::initialProportionGPU != 0) {
+    if (conf::initialProportionGPU != 0 && conf::unifiedAddressSpace == false) {
         sycl::free(A_gpu, gpuQueue);
     }
 }
 
 void CholeskyMixed::initGPUMemory() {
-    // init GPU data structure for matrix A on which the Cholesky decomposition
-    // should be performed
-    const std::size_t bytesGPU = A.matrixData.size() * sizeof(unsigned char);
-    A_gpu = reinterpret_cast<unsigned char *>(malloc_device(bytesGPU, gpuQueue));
-    // Copy the matrix A to the GPU
-    gpuQueue.submit([&](handler &h) { h.memcpy(A_gpu, A.matrixData.data(), bytesGPU); }).wait();
+    if (conf::unifiedAddressSpace == false) {
+        // init GPU data structure for matrix A on which the Cholesky decomposition
+        // should be performed
+        const std::size_t bytesGPU = A.matrixData.size() * sizeof(unsigned char);
+        A_gpu = reinterpret_cast<unsigned char *>(malloc_device(bytesGPU, gpuQueue));
+        // Copy the matrix A to the GPU
+        gpuQueue.submit([&](handler &h) { h.memcpy(A_gpu, A.matrixData.data(), bytesGPU); }).wait();
+    } else {
+        // CPU and GPU share the same data structure in case of a unified address space
+        A_gpu = A.matrixData.data();
+    }
+
     executionTimes.endMemoryInitGPU = std::chrono::steady_clock::now();
 }
 
@@ -66,7 +72,8 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal, const std::size_t blo
             minBlockCountGPU = 0;
         }
 
-        if (gpuProportion_new == 1 && k < A.blockCountXY - minBlockCountGPU) {
+        if (gpuProportion_new == 1 && k < A.blockCountXY - minBlockCountGPU &&
+            conf::unifiedAddressSpace == false) {
             // if GPU proportion turns 100%, current diagonal block might now be
             // needed on the GPU if min GPU block count not yet reached
             gpuQueue
@@ -93,72 +100,76 @@ void CholeskyMixed::shiftSplit(const int blockCountATotal, const std::size_t blo
     if (gpuProportion != 0 && gpuProportion != 1) {
         gpuProportion = gpuProportion_new;
 
-        if (blockCountGPU_new >= minBlockCountGPU) {
-            // re-balancing: move split up or down by possibly multiple rows,
-            // depending on new calculated load distribution
+        if (conf::unifiedAddressSpace == false) {
+            if (blockCountGPU_new >= minBlockCountGPU) {
+                // re-balancing: move split up or down by possibly multiple rows,
+                // depending on new calculated load distribution
 
-            if (blockStartGPU_new < blockStartGPU) {
-                // GPU proportion increased --> move split up
-                const int additionalBlocks = blockStartGPU - blockStartGPU_new;
+                if (blockStartGPU_new < blockStartGPU) {
+                    // GPU proportion increased --> move split up
+                    const int additionalBlocks = blockStartGPU - blockStartGPU_new;
 
-                // copy part of each column that was computed on the CPU and now has to
-                // be computed by the GPU after re-balancing
-                for (int c = 0; c < blockCountCPU_new + k + 1 + additionalBlocks; ++c) {
-                    const int columnsToRight = A.blockCountXY - c;
-                    // first block in the column updated by the GPU
-                    int blockID = blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
+                    // copy part of each column that was computed on the CPU and now has to
+                    // be computed by the GPU after re-balancing
+                    for (int c = 0; c < blockCountCPU_new + k + 1 + additionalBlocks; ++c) {
+                        const int columnsToRight = A.blockCountXY - c;
+                        // first block in the column updated by the GPU
+                        int blockID =
+                            blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
 
-                    int blocksToCopy = additionalBlocks;
+                        int blocksToCopy = additionalBlocks;
 
-                    if (c < blockCountCPU_new + k + 1) {
-                        blockID +=
-                            std::max(A.blockCountXY - c - (blockCountGPU + additionalBlocks), 0);
-                    } else {
-                        blocksToCopy = additionalBlocks - (c - (blockCountCPU_new + k + 1));
+                        if (c < blockCountCPU_new + k + 1) {
+                            blockID += std::max(
+                                A.blockCountXY - c - (blockCountGPU + additionalBlocks), 0);
+                        } else {
+                            blocksToCopy = additionalBlocks - (c - (blockCountCPU_new + k + 1));
+                        }
+
+                        // Prepare correct offsets for mixed precision matrix blocks
+                        const std::size_t A_blockOffset = A.blockByteOffsets[blockID];
+                        const std::size_t A_blockSizeBytes =
+                            A.blockByteOffsets[blockID + blocksToCopy] - A_blockOffset;
+
+                        // for current column copy additionalBlocks amount of blocks
+                        gpuQueue.submit([&](handler &h) {
+                            h.memcpy(A_gpu + A_blockOffset, A.matrixData.data() + A_blockOffset,
+                                     A_blockSizeBytes);
+                        });
                     }
+                    gpuQueue.wait();
+                } else if (blockStartGPU_new > blockStartGPU) {
+                    // CPU proportion increased --> move split down
+                    const int additionalBlocks = blockStartGPU_new - blockStartGPU;
 
-                    // Prepare correct offsets for mixed precision matrix blocks
-                    const std::size_t A_blockOffset = A.blockByteOffsets[blockID];
-                    const std::size_t A_blockSizeBytes =
-                        A.blockByteOffsets[blockID + blocksToCopy] - A_blockOffset;
+                    // copy part of each column that was computed on the GPU and now has to
+                    // be computed by the CPU after re-balancing
+                    for (int c = 0; c < blockCountCPU + k + additionalBlocks; ++c) {
+                        const int columnsToRight = A.blockCountXY - c;
+                        // first block in the column updated by the GPU
+                        int blockID =
+                            blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
 
-                    // for current column copy additionalBlocks amount of blocks
-                    gpuQueue.submit([&](handler &h) {
-                        h.memcpy(A_gpu + A_blockOffset, A.matrixData.data() + A_blockOffset,
-                                 A_blockSizeBytes);
-                    });
-                }
-                gpuQueue.wait();
-            } else if (blockStartGPU_new > blockStartGPU) {
-                // CPU proportion increased --> move split down
-                const int additionalBlocks = blockStartGPU_new - blockStartGPU;
+                        int blocksToCopy = additionalBlocks;
 
-                // copy part of each column that was computed on the GPU and now has to
-                // be computed by the CPU after re-balancing
-                for (int c = 0; c < blockCountCPU + k + additionalBlocks; ++c) {
-                    const int columnsToRight = A.blockCountXY - c;
-                    // first block in the column updated by the GPU
-                    int blockID = blockCountATotal - (columnsToRight * (columnsToRight + 1) / 2);
+                        if (c < blockCountCPU + k + 1) {
+                            blockID += std::max(A.blockCountXY - c - blockCountGPU, 0);
+                        } else {
+                            blocksToCopy = additionalBlocks - (c - (blockCountCPU + k + 1) + 1);
+                        }
 
-                    int blocksToCopy = additionalBlocks;
+                        const std::size_t A_blockOffset = A.blockByteOffsets[blockID];
+                        const std::size_t A_blockSizeBytes =
+                            A.blockByteOffsets[blockID + blocksToCopy] - A_blockOffset;
 
-                    if (c < blockCountCPU + k + 1) {
-                        blockID += std::max(A.blockCountXY - c - blockCountGPU, 0);
-                    } else {
-                        blocksToCopy = additionalBlocks - (c - (blockCountCPU + k + 1) + 1);
+                        // for current column copy additionalBlocks amount of blocks
+                        gpuQueue.submit([&](handler &h) {
+                            h.memcpy(A.matrixData.data() + A_blockOffset, A_gpu + A_blockOffset,
+                                     A_blockSizeBytes);
+                        });
                     }
-
-                    const std::size_t A_blockOffset = A.blockByteOffsets[blockID];
-                    const std::size_t A_blockSizeBytes =
-                        A.blockByteOffsets[blockID + blocksToCopy] - A_blockOffset;
-
-                    // for current column copy additionalBlocks amount of blocks
-                    gpuQueue.submit([&](handler &h) {
-                        h.memcpy(A.matrixData.data() + A_blockOffset, A_gpu + A_blockOffset,
-                                 A_blockSizeBytes);
-                    });
+                    gpuQueue.wait();
                 }
-                gpuQueue.wait();
             }
         }
     }
@@ -197,7 +208,7 @@ void CholeskyMixed::choleskyUpdateCurrentDiagonalBlock(const std::size_t blockSi
         };
         cpuQueue.wait();
 
-        if (gpuProportion != 0) {
+        if (gpuProportion != 0 && conf::unifiedAddressSpace == false) {
             // copy updated current diagonal block to GPU memory
             gpuQueue
                 .submit([&](handler &h) {
@@ -223,7 +234,7 @@ void CholeskyMixed::choleskyUpdateCurrentDiagonalBlock(const std::size_t blockSi
             break;
         };
         gpuQueue.wait();
-        if (gpuProportion != 1) {
+        if (gpuProportion != 1 && conf::unifiedAddressSpace == false) {
             // copy updated current diagonal block to CPU memory
             gpuQueue
                 .submit([&](handler &h) {
@@ -254,7 +265,8 @@ void CholeskyMixed::choleskySolveTriangularSystemColumn(const int k, const int b
 
     // if heterogeneous computing is enabled, copy the blocks updated by the CPU
     // to the GPU
-    if (gpuProportion != 1 && gpuProportion != 0 && blockCountCPU > 0) {
+    if (gpuProportion != 1 && gpuProportion != 0 && blockCountCPU > 0 &&
+        conf::unifiedAddressSpace == false) {
         executionTimes.startCopy_column = std::chrono::steady_clock::now();
         const std::size_t blockStartOffset = A.blockByteOffsets[blockID + 1];
         const std::size_t blockByteCount =
@@ -507,6 +519,13 @@ void CholeskyMixed::printTimes(const int k) {
 }
 
 void CholeskyMixed::copyResultFromGPU(const int blockCountATotal) {
+    if (conf::unifiedAddressSpace == true) {
+        // no copy needed in case of a unified memory access space
+        executionTimes.startResultCopyGPU = std::chrono::steady_clock::now();
+        executionTimes.endResultCopyGPU = executionTimes.startResultCopyGPU;
+        return;
+    }
+
     executionTimes.startResultCopyGPU = std::chrono::steady_clock::now();
     if (gpuProportion != 1 && gpuProportion != 0) {
         // Case heterogeneous: copy parts of the matrix that were computed by the
