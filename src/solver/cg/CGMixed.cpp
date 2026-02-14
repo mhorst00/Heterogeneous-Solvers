@@ -46,8 +46,8 @@ void CGMixed::solveHeterogeneous() {
 
     // initialize data structures
     auto startMemInit = std::chrono::steady_clock::now();
-    initGPUdataStructures();
     initCPUdataStructures();
+    initGPUdataStructures();
     auto endMemInit = std::chrono::steady_clock::now();
     metricsTracker.memoryInitTime =
         std::chrono::duration<double, std::milli>(endMemInit - startMemInit).count();
