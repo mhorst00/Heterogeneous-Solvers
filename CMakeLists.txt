@@ -149,8 +149,8 @@ set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS TRUE CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
         hws
-        GIT_REPOSITORY https://github.com/SC-SGS/hardware_sampling
-        GIT_TAG fbd284d7d18081c4b44fbff3b402afbe8a81610a
+        GIT_REPOSITORY https://github.com/mhorst00/hardware_sampling
+        GIT_TAG 3d6c80d215cf3139e9077a92c4dab26a7aa3b56e
 )
 FetchContent_MakeAvailable(hws)
 add_dependencies(heterogeneous_solvers hws)

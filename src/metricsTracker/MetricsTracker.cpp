@@ -341,7 +341,15 @@ void MetricsTracker::writeJSON(std::string &path) {
                        vectorToJSONString<double>(
                            powerSamples_CPU.get_power_usage().value_or(std::vector<double>(0))) +
                        ",\n";
-
+#ifdef NVIDIA
+    metricsJSON << "\t \"rawPowerData_Module\":       " +
+                       vectorToJSONString<double>(
+                           powerSamples_GPU.get_system_power_usage().value_or(
+                               std::vector<double>(0))) +
+                       ",\n";
+#else
+    metricsJSON << "\t \"rawPowerData_Module\":       " + std::string("[]") + ",\n";
+#endif // NVIDIA
     metricsJSON << "\t \"rawEnergyData_GPU\":      " +
                        vectorToJSONString<double>(
                            powerSamples_GPU.get_power_total_energy_consumption().value_or(
