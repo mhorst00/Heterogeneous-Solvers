@@ -32,71 +32,82 @@ inline void write_element(unsigned char *data, std::size_t offset, std::size_t i
     }
 }
 
-template <typename TA, typename TB, typename TC>
-inline void matrixMatrixStepCPUKernel(TA *blockA, TB *blockB, TC *blockC, const int i,
+template <typename A, typename B, typename C>
+inline void matrixMatrixStepCPUKernel(A *blockA, B *blockB, C *blockC, const int i,
                                       const int matrixBlockSize) {
     for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
         conf::fp_type value = 0;
-#pragma clang loop vectorize(enable) unroll(enable)
+#pragma clang loop vectorize(enable)
         for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-            value += blockB[j * matrixBlockSize + k] * blockC[i * matrixBlockSize + k];
+            value += static_cast<conf::fp_type>(blockB[j * matrixBlockSize + k]) *
+                     static_cast<conf::fp_type>(blockC[i * matrixBlockSize + k]);
         }
         blockA[j * matrixBlockSize + i] -= value;
     }
 }
 
-template <typename A, typename B, typename... Args>
-inline void dispatch_c(void *p0, void *p1, void *p2, int prec2, Args &&...args) {
-    switch (prec2) {
-    case 2:
-        matrixMatrixStepCPUKernel(static_cast<A *>(p0), static_cast<B *>(p1),
-                                  static_cast<sycl::half *>(p2), std::forward<Args>(args)...);
-        break;
-    case 4:
-        matrixMatrixStepCPUKernel(static_cast<A *>(p0), static_cast<B *>(p1),
-                                  static_cast<float *>(p2), std::forward<Args>(args)...);
-        break;
-    case 8:
-        matrixMatrixStepCPUKernel(static_cast<A *>(p0), static_cast<B *>(p1),
-                                  static_cast<double *>(p2), std::forward<Args>(args)...);
-        break;
-    default: /* error */
-        break;
-    }
-}
+template <typename F>
+inline void dispatch(void *p0, void *p1, void *p2, int prec0, int prec1, int prec2, F &&f) {
+    auto dispatch_c = [&](auto *a, auto *b) {
+        switch (prec2) {
+        case 2:
+            f(a, b, static_cast<sycl::half *>(p2));
+            break;
+        case 4:
+            f(a, b, static_cast<float *>(p2));
+            break;
+        case 8:
+            f(a, b, static_cast<double *>(p2));
+            break;
+        }
+    };
 
-template <typename A, typename... Args>
-inline void dispatch_b(void *p0, void *p1, void *p2, int prec1, int prec2, Args &&...args) {
-    switch (prec1) {
-    case 2:
-        dispatch_c<A, sycl::half>(p0, p1, p2, prec2, std::forward<Args>(args)...);
-        break;
-    case 4:
-        dispatch_c<A, float>(p0, p1, p2, prec2, std::forward<Args>(args)...);
-        break;
-    case 8:
-        dispatch_c<A, double>(p0, p1, p2, prec2, std::forward<Args>(args)...);
-        break;
-    default: /* error */
-        break;
-    }
-}
-
-template <typename... Args>
-inline void dispatch(void *p0, void *p1, void *p2, int prec0, int prec1, int prec2,
-                     Args &&...args) {
     switch (prec0) {
-    case 2:
-        dispatch_b<sycl::half>(p0, p1, p2, prec1, prec2, std::forward<Args>(args)...);
+    case 2: {
+        auto *a = static_cast<sycl::half *>(p0);
+        switch (prec1) {
+        case 2:
+            dispatch_c(a, static_cast<sycl::half *>(p1));
+            break;
+        case 4:
+            dispatch_c(a, static_cast<float *>(p1));
+            break;
+        case 8:
+            dispatch_c(a, static_cast<double *>(p1));
+            break;
+        }
         break;
-    case 4:
-        dispatch_b<float>(p0, p1, p2, prec1, prec2, std::forward<Args>(args)...);
+    }
+    case 4: {
+        auto *a = static_cast<float *>(p0);
+        switch (prec1) {
+        case 2:
+            dispatch_c(a, static_cast<sycl::half *>(p1));
+            break;
+        case 4:
+            dispatch_c(a, static_cast<float *>(p1));
+            break;
+        case 8:
+            dispatch_c(a, static_cast<double *>(p1));
+            break;
+        }
         break;
-    case 8:
-        dispatch_b<double>(p0, p1, p2, prec1, prec2, std::forward<Args>(args)...);
+    }
+    case 8: {
+        auto *a = static_cast<double *>(p0);
+        switch (prec1) {
+        case 2:
+            dispatch_c(a, static_cast<sycl::half *>(p1));
+            break;
+        case 4:
+            dispatch_c(a, static_cast<float *>(p1));
+            break;
+        case 8:
+            dispatch_c(a, static_cast<double *>(p1));
+            break;
+        }
         break;
-    default: /* error */
-        break;
+    }
     }
 }
 
@@ -1222,8 +1233,10 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU2(
             const int i = local_i % matrixBlockSize;
 
             // use complex inline dispatch structure to optimize loops with static types
-            dispatch(blockA, blockB, blockC, blockPrecA, blockPrecB, blockPrecC, i,
-                     matrixBlockSize);
+            dispatch(blockA, blockB, blockC, blockPrecA, blockPrecB, blockPrecC,
+                     [=](auto *a, auto *b, auto *c) {
+                         matrixMatrixStepCPUKernel(a, b, c, i, matrixBlockSize);
+                     });
         });
     });
 
