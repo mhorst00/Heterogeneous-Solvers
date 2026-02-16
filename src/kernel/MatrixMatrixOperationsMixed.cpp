@@ -32,6 +32,74 @@ inline void write_element(unsigned char *data, std::size_t offset, std::size_t i
     }
 }
 
+template <typename TA, typename TB, typename TC>
+inline void matrixMatrixStepCPUKernel(TA *blockA, TB *blockB, TC *blockC, const int i,
+                                      const int matrixBlockSize) {
+    for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
+        conf::fp_type value = 0;
+#pragma clang loop vectorize(enable) unroll(enable)
+        for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
+            value += blockB[j * matrixBlockSize + k] * blockC[i * matrixBlockSize + k];
+        }
+        blockA[j * matrixBlockSize + i] -= value;
+    }
+}
+
+template <typename A, typename B, typename... Args>
+inline void dispatch_c(void *p0, void *p1, void *p2, int prec2, Args &&...args) {
+    switch (prec2) {
+    case 2:
+        matrixMatrixStepCPUKernel(static_cast<A *>(p0), static_cast<B *>(p1),
+                                  static_cast<sycl::half *>(p2), std::forward<Args>(args)...);
+        break;
+    case 4:
+        matrixMatrixStepCPUKernel(static_cast<A *>(p0), static_cast<B *>(p1),
+                                  static_cast<float *>(p2), std::forward<Args>(args)...);
+        break;
+    case 8:
+        matrixMatrixStepCPUKernel(static_cast<A *>(p0), static_cast<B *>(p1),
+                                  static_cast<double *>(p2), std::forward<Args>(args)...);
+        break;
+    default: /* error */
+        break;
+    }
+}
+
+template <typename A, typename... Args>
+inline void dispatch_b(void *p0, void *p1, void *p2, int prec1, int prec2, Args &&...args) {
+    switch (prec1) {
+    case 2:
+        dispatch_c<A, sycl::half>(p0, p1, p2, prec2, std::forward<Args>(args)...);
+        break;
+    case 4:
+        dispatch_c<A, float>(p0, p1, p2, prec2, std::forward<Args>(args)...);
+        break;
+    case 8:
+        dispatch_c<A, double>(p0, p1, p2, prec2, std::forward<Args>(args)...);
+        break;
+    default: /* error */
+        break;
+    }
+}
+
+template <typename... Args>
+inline void dispatch(void *p0, void *p1, void *p2, int prec0, int prec1, int prec2,
+                     Args &&...args) {
+    switch (prec0) {
+    case 2:
+        dispatch_b<sycl::half>(p0, p1, p2, prec1, prec2, std::forward<Args>(args)...);
+        break;
+    case 4:
+        dispatch_b<float>(p0, p1, p2, prec1, prec2, std::forward<Args>(args)...);
+        break;
+    case 8:
+        dispatch_b<double>(p0, p1, p2, prec1, prec2, std::forward<Args>(args)...);
+        break;
+    default: /* error */
+        break;
+    }
+}
+
 sycl::event MatrixMatrixOperationsMixed::triangularSolve(
     sycl::queue &queue, void *A, int *precisionTypes, std::size_t *blockByteOffsets,
     const int blockID, const int blockRow, const int blockStart, const int blockCount) {
@@ -1147,21 +1215,15 @@ sycl::event MatrixMatrixOperationsMixed::matrixMatrixStep_optimizedCPU2(
             const std::size_t blockPrecB = precisionTypes[wgBlockID_B];
             const std::size_t blockPrecC = precisionTypes[wgBlockID_C];
 
+            unsigned char *blockA = ABytes + blockOffsetA;
+            unsigned char *blockB = ABytes + blockOffsetB;
+            unsigned char *blockC = ABytes + blockOffsetC;
+
             const int i = local_i % matrixBlockSize;
 
-            for (int j = 0; j < static_cast<int>(matrixBlockSize); ++j) {
-                conf::fp_type value = 0;
-#pragma clang loop vectorize(enable) unroll(enable)
-                for (int k = 0; k < static_cast<int>(matrixBlockSize); ++k) {
-                    // A = A - B * C^T
-                    value +=
-                        read_element(ABytes, blockOffsetB, j * matrixBlockSize + k, blockPrecB) *
-                        read_element(ABytes, blockOffsetC, i * matrixBlockSize + k, blockPrecC);
-                }
-                conf::fp_type tmp_val =
-                    read_element(ABytes, blockOffsetA, j * matrixBlockSize + i, blockPrecA) - value;
-                write_element(ABytes, blockOffsetA, j * matrixBlockSize + i, tmp_val, blockPrecA);
-            }
+            // use complex inline dispatch structure to optimize loops with static types
+            dispatch(blockA, blockB, blockC, blockPrecA, blockPrecB, blockPrecC, i,
+                     matrixBlockSize);
         });
     });
 
