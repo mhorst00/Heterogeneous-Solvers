@@ -306,6 +306,12 @@ int main(int argc, char *argv[]) {
                     cholesky.metricsTracker.endTracking();
                 }
                 cholesky.metricsTracker.solveTime = solveTime;
+                if (conf::checkResult) {
+                    double error = UtilityFunctions::checkResult(b, cpuQueue, gpuQueue,
+                                                                 path_gp_input, path_gp_output);
+                    std::cout << "Average error of Ax - b: " << error << std::endl;
+                    cholesky.metricsTracker.error = error;
+                }
                 cholesky.writeMetricsToFile();
 
             } else if (!conf::mixed) {
@@ -321,14 +327,15 @@ int main(int argc, char *argv[]) {
                     cholesky.metricsTracker.endTracking();
                 }
                 cholesky.metricsTracker.solveTime = solveTime;
+                if (conf::checkResult) {
+                    double error = UtilityFunctions::checkResult(b, cpuQueue, gpuQueue,
+                                                                 path_gp_input, path_gp_output);
+                    std::cout << "Average error of Ax - b: " << error << std::endl;
+                    cholesky.metricsTracker.error = error;
+                }
                 cholesky.writeMetricsToFile();
             }
 
-            if (conf::checkResult) {
-                double error = UtilityFunctions::checkResult(b, cpuQueue, gpuQueue, path_gp_input,
-                                                             path_gp_output);
-                std::cout << "Average error of Ax - b: " << error << std::endl;
-            }
         } else {
             throw std::runtime_error("Invalid algorithm: " + algorithm);
         }

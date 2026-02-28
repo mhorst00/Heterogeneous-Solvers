@@ -71,6 +71,8 @@ class MetricsTracker {
 
     double solveTime = 0.0; // time for the solver step after the Cholesky decomposition
 
+    double error = 0.0;
+
     /**
      * starts tracking with the hws library
      */

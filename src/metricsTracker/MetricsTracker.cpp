@@ -251,6 +251,8 @@ void MetricsTracker::writeJSON(std::string &path) {
     metricsJSON << "\t \"resultCopyTime\":         " + std::to_string(resultCopyTime) + ",\n";
     metricsJSON << "\t \"totalTime\":              " + std::to_string(totalTime) + ",\n";
     metricsJSON << "\t \"choleskySolveStepTime\":  " + std::to_string(solveTime) + ",\n";
+    // special formatting required due to precision
+    metricsJSON << "\t \"error\":                  " + fmt::format("{}", error) + ",\n";
 
     metricsJSON << "\t \"averageUtilization_GPU\": " +
                        vectorToJSONString<double>(averageUtilization_GPU) + ",\n";
@@ -342,13 +344,13 @@ void MetricsTracker::writeJSON(std::string &path) {
                            powerSamples_CPU.get_power_usage().value_or(std::vector<double>(0))) +
                        ",\n";
 #ifdef NVIDIA
-    metricsJSON << "\t \"rawPowerData_Module\":       " +
+    metricsJSON << "\t \"rawPowerData_Module\":    " +
                        vectorToJSONString<double>(
                            powerSamples_GPU.get_system_power_usage().value_or(
                                std::vector<double>(0))) +
                        ",\n";
 #else
-    metricsJSON << "\t \"rawPowerData_Module\":       " + std::string("[]") + ",\n";
+    metricsJSON << "\t \"rawPowerData_Module\":    " + std::string("[]") + ",\n";
 #endif // NVIDIA
     metricsJSON << "\t \"rawEnergyData_GPU\":      " +
                        vectorToJSONString<double>(
