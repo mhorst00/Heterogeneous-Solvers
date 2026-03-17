@@ -287,9 +287,23 @@ int main(int argc, char *argv[]) {
             if (conf::mixed) {
                 CGMixed cgm(A_mixed.value(), b, cpuQueue, gpuQueue, loadBalancer);
                 cgm.solveHeterogeneous();
+                if (conf::checkResult) {
+                    double error = UtilityFunctions::checkResultCG(b, cgm.x, cpuQueue, gpuQueue,
+                                                                   path_gp_input);
+                    std::cout << "Average error of Ax - b: " << error << std::endl;
+                    cgm.metricsTracker.error = error;
+                }
+                cgm.writeMetricsToFile();
             } else if (!conf::mixed) {
                 CG cg(A.value(), b, cpuQueue, gpuQueue, loadBalancer);
                 cg.solveHeterogeneous();
+                if (conf::checkResult) {
+                    double error =
+                        UtilityFunctions::checkResultCG(b, cg.x, cpuQueue, gpuQueue, path_gp_input);
+                    std::cout << "Average error of Ax - b: " << error << std::endl;
+                    cg.metricsTracker.error = error;
+                }
+                cg.writeMetricsToFile();
             }
         } else if (conf::algorithm == "cholesky") {
             if (conf::mixed) {

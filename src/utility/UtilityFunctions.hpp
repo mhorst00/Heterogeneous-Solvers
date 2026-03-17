@@ -47,6 +47,22 @@ class UtilityFunctions {
      */
     static double checkResult(RightHandSide &b, sycl::queue cpuQueue, sycl::queue gpuQueue,
                               std::string path_gp_input, std::string path_gp_output);
+
+    /**
+     * Validates the result of the CG solution by computing the
+     * average error of Ax - b.
+     *
+     * @param b right hand side
+     * @param x solution vector
+     * @param cpuQueue CPU queue
+     * @param gpuQueue GPU queue
+     * @param path_gp_input Gaussian process input data
+     * @return average error of Ax - b
+     */
+    static double checkResultCG(
+        RightHandSide &b,
+        std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>> &x,
+        sycl::queue cpuQueue, sycl::queue gpuQueue, std::string path_gp_input);
 };
 
 #endif // HETEROGENEOUS_CONJUGATE_GRADIENTS_UTILITYFUNCTIONS_HPP

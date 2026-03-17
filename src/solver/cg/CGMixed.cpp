@@ -158,14 +158,6 @@ void CGMixed::solveHeterogeneous() {
     metricsTracker.totalTime = totalTime;
     metricsTracker.endTracking();
 
-    std::string timeString = UtilityFunctions::getTimeString();
-    std::string filePath = conf::outputPath + "/" + timeString;
-    std::filesystem::create_directories(filePath);
-    metricsTracker.writeJSON(filePath);
-    if (conf::writeResult) {
-        UtilityFunctions::writeResult(".", x);
-    }
-
     freeDataStructures();
 }
 
@@ -717,5 +709,15 @@ void CGMixed::rebalanceProportions(double &gpuProportion) {
         std::cout << "Block count GPU: " << blockCountGPU << std::endl;
         std::cout << "Block count CPU: " << blockCountCPU << std::endl;
         std::cout << "New GPU proportion: " << gpuProportion * 100 << "%" << std::endl;
+    }
+}
+
+void CGMixed::writeMetricsToFile() {
+    std::string timeString = UtilityFunctions::getTimeString();
+    std::string filePath = conf::outputPath + "/" + timeString;
+    std::filesystem::create_directories(filePath);
+    metricsTracker.writeJSON(filePath);
+    if (conf::writeResult) {
+        UtilityFunctions::writeResult(".", x);
     }
 }

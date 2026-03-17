@@ -696,3 +696,13 @@ void CG::rebalanceProportions(double &gpuProportion) {
         std::cout << "New GPU proportion: " << gpuProportion * 100 << "%" << std::endl;
     }
 }
+
+void CG::writeMetricsToFile() {
+    std::string timeString = UtilityFunctions::getTimeString();
+    std::string filePath = conf::outputPath + "/" + timeString;
+    std::filesystem::create_directories(filePath);
+    metricsTracker.writeJSON(filePath);
+    if (conf::writeResult) {
+        UtilityFunctions::writeResult(".", x);
+    }
+}

@@ -61,7 +61,8 @@ void UtilityFunctions::measureIdlePowerCPU() {
 double UtilityFunctions::checkResult(RightHandSide &b, sycl::queue cpuQueue, sycl::queue gpuQueue,
                                      std::string path_gp_input, std::string path_gp_output) {
     std::cout << "Checking result" << std::endl;
-    SymmetricMatrix A_new = MatrixGenerator::generateSPDMatrix(path_gp_input, cpuQueue, gpuQueue);
+    SymmetricMatrix A_new =
+        MatrixGenerator::generateSPDMatrix_optimized(path_gp_input, cpuQueue, gpuQueue);
 
     RightHandSide result(conf::N, conf::matrixBlockSize, gpuQueue);
 
@@ -79,4 +80,48 @@ double UtilityFunctions::checkResult(RightHandSide &b, sycl::queue cpuQueue, syc
     error /= static_cast<double>(conf::N);
 
     return error;
+}
+
+double UtilityFunctions::checkResultCG(
+    RightHandSide &b,
+    std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>> &x,
+    sycl::queue cpuQueue, sycl::queue gpuQueue, std::string path_gp_input) {
+    std::cout << "Checking CG result..." << std::endl;
+
+    SymmetricMatrix A =
+        MatrixGenerator::generateSPDMatrix_optimized(path_gp_input, cpuQueue, gpuQueue);
+
+    std::vector<conf::fp_type, sycl::usm_allocator<conf::fp_type, sycl::usm::alloc::host>> Ax(
+        cpuQueue);
+    Ax.resize(b.blockCountX * b.blockSize);
+
+    MatrixVectorOperations::matrixVectorBlock(cpuQueue, A.matrixData.data(), x.data(), Ax.data(), 0,
+                                              0, b.blockCountX, b.blockCountX, A.blockCountXY,
+                                              true);
+    cpuQueue.wait();
+
+    // Compute the L2 Relative Residual: ||b - Ax||_2 / ||b||_2
+    double residual_norm_sq = 0.0;
+    double b_norm_sq = 0.0;
+
+    for (unsigned int i = 0; i < b.rightHandSideData.size(); i++) {
+        // Calculate the difference between the true RHS and the computed Ax
+        double diff = b.rightHandSideData[i] - Ax[i];
+
+        residual_norm_sq += diff * diff;                              // ||b - Ax||^2
+        b_norm_sq += b.rightHandSideData[i] * b.rightHandSideData[i]; // ||b||^2
+    }
+
+    // Take the square roots to get the standard L2 (Euclidean) norms
+    double residual_norm = std::sqrt(residual_norm_sq);
+    double b_norm = std::sqrt(b_norm_sq);
+
+    // Safety check to avoid division by zero if b is a vector of all zeros
+    if (b_norm == 0.0) {
+        return residual_norm;
+    }
+
+    double relative_residual = residual_norm / b_norm;
+
+    return relative_residual;
 }
