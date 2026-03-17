@@ -11,7 +11,7 @@ build: _acpp_setup
   #! /usr/bin/env bash
   mkdir -p build
   cd build
-  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER={{ACPP_PREFIX}}/bin/acpp -DCMAKE_CXX_FLAGS="-march=native" -DCMAKE_PREFIX_PATH="{{ACPP_PREFIX}}" -DGPU_VENDOR={{GPU_VENDOR}} -DUSE_DOUBLE={{FP64}} -DENABLE_TESTS={{TESTS}} ..
+  cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$(which clang-21) -DCMAKE_CXX_COMPILER={{ACPP_PREFIX}}/bin/acpp -DCMAKE_CXX_FLAGS="-march=native" -DCMAKE_PREFIX_PATH="{{ACPP_PREFIX}}" -DGPU_VENDOR={{GPU_VENDOR}} -DUSE_DOUBLE={{FP64}} -DENABLE_TESTS={{TESTS}} ..
   make -j $(nproc --all)
 
 run *FLAGS:
@@ -32,6 +32,6 @@ _acpp_setup:
   git checkout {{ACPP_VERSION}}
   mkdir -p build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX={{ACPP_PREFIX}} -DCMAKE_C_COMPILER=$(which clang) -DCMAKE_CXX_COMPILER=$(which clang++) -DROCM_DEVICE_LIBS_PATH=/usr/lib64/rocm/llvm/lib/clang/22/lib/amdgcn/bitcode -DACPP_EXPERIMENTAL_LLVM=ON ..
+  cmake -DCMAKE_INSTALL_PREFIX={{ACPP_PREFIX}} -DCMAKE_C_COMPILER=$(which clang-21) -DCMAKE_CXX_COMPILER=$(which clang++-21) -DLLVM_DIR=$(llvm-config-21 --cmakedir) -DCLANG_INCLUDE_PATH=$(llvm-config-21 --includedir)/clang -DROCM_DEVICE_LIBS_PATH=/usr/lib64/rocm/llvm/lib/clang/20/lib/amdgcn/bitcode -DACPP_EXPERIMENTAL_LLVM=ON ..
   make -j $(nproc --all)
   make install
