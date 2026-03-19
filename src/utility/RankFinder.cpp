@@ -176,9 +176,9 @@ int RankFinder::determine_precision(int rank, int blockSize, bool isDiagonal) {
     }
 
     // Off-diagonal blocks can use lower precision for low-rank blocks
-    if (rankRatio > conf::fp64Bound)
+    if (rankRatio > 1 - conf::fp64Bound)
         return 8; // FP64
-    if (rankRatio > conf::fp32Bound)
+    if (rankRatio > 1 - conf::fp32Bound)
         return 4;               // FP32
     return remaining_precision; // FP16 if enabled
 }
