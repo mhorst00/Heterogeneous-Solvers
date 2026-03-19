@@ -1,4 +1,5 @@
 #include "RankFinder.hpp"
+#include "Configuration.hpp"
 #include <algorithm>
 #include <cmath>
 #include <sycl/sycl.hpp>
@@ -167,6 +168,7 @@ std::vector<int> RankFinder::compute_all_block_ranks(
 // Returns:   8 = double (FP64), 4 = float (FP32), 2 = half (FP16)
 int RankFinder::determine_precision(int rank, int blockSize, bool isDiagonal) {
     double rankRatio = static_cast<double>(rank) / blockSize;
+    const int remaining_precision = (conf::fp16) ? 2 : 4;
 
     // Diagonal blocks need higher precision for stability
     if (isDiagonal) {
@@ -174,11 +176,11 @@ int RankFinder::determine_precision(int rank, int blockSize, bool isDiagonal) {
     }
 
     // Off-diagonal blocks can use lower precision for low-rank blocks
-    if (rankRatio > 0.7)
+    if (rankRatio > conf::fp64Bound)
         return 8; // FP64
-    if (rankRatio > 0.15)
-        return 4; // FP32
-    return 2;     // FP16
+    if (rankRatio > conf::fp32Bound)
+        return 4;               // FP32
+    return remaining_precision; // FP16 if enabled
 }
 
 // Main function to compute precision types for all blocks
